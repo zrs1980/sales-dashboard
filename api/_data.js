@@ -18,28 +18,26 @@ export async function fetchLoopDeals() {
 }
 
 export async function fetchCebaDeals() {
-  const [openData, closedData] = await Promise.all([
-    hsPost('/crm/v3/objects/deals/search', {
-      filterGroups: [{
-        filters: [
-          { propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE },
-          { propertyName: 'dealstage', operator: 'NEQ', value: 'closedwon' },
-          { propertyName: 'dealstage', operator: 'NEQ', value: 'closedlost' },
-        ]
-      }],
-      properties: DEAL_PROPS,
-      limit: 100,
-    }),
-    hsPost('/crm/v3/objects/deals/search', {
-      filterGroups: [
-        { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedwon' }] },
-        { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedlost' }] },
-      ],
-      properties: DEAL_PROPS,
-      sorts: [{ propertyName: 'closedate', direction: 'DESCENDING' }],
-      limit: 50,
-    }),
-  ])
+  const openData = await hsPost('/crm/v3/objects/deals/search', {
+    filterGroups: [{
+      filters: [
+        { propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE },
+        { propertyName: 'dealstage', operator: 'NEQ', value: 'closedwon' },
+        { propertyName: 'dealstage', operator: 'NEQ', value: 'closedlost' },
+      ]
+    }],
+    properties: DEAL_PROPS,
+    limit: 100,
+  })
+  const closedData = await hsPost('/crm/v3/objects/deals/search', {
+    filterGroups: [
+      { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedwon' }] },
+      { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedlost' }] },
+    ],
+    properties: DEAL_PROPS,
+    sorts: [{ propertyName: 'closedate', direction: 'DESCENDING' }],
+    limit: 50,
+  })
   return { open: openData.results || [], closed: closedData.results || [] }
 }
 

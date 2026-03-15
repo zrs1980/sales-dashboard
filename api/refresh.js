@@ -3,12 +3,10 @@ import { fetchLoopDeals, fetchCebaDeals, fetchLeads, fetchSdr } from './_data.js
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   try {
-    const [loopDeals, ceba, leads, sdr] = await Promise.all([
-      fetchLoopDeals(),
-      fetchCebaDeals(),
-      fetchLeads(),
-      fetchSdr(),
-    ])
+    const loopDeals = await fetchLoopDeals()
+    const ceba = await fetchCebaDeals()
+    const leads = await fetchLeads()
+    const sdr = await fetchSdr()
 
     res.json({
       loop: { deals: loopDeals },

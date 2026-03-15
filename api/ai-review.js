@@ -35,16 +35,21 @@ function blockToText(block, prefix = '') {
 }
 
 async function fetchNotionContent(pageId, depth = 0) {
-  if (depth > 2) return []
+  if (depth > 3) return []
   try {
-    const res = await fetch(`${NOTION_BASE}/blocks/${pageId}/children?page_size=50`, { headers: notionHeaders() })
+    const res = await fetch(`${NOTION_BASE}/blocks/${pageId}/children?page_size=100`, { headers: notionHeaders() })
     if (!res.ok) return []
     const data = await res.json()
     const lines = []
+    const indent = '  '.repeat(depth)
+
     for (const block of data.results || []) {
-      const line = blockToText(block, depth > 0 ? '  '.repeat(depth) : '')
+      const line = blockToText(block, indent)
       if (line) lines.push(line)
-      if (block.type === 'child_page' && block.id && depth < 2) {
+
+      // Recurse into ANY block that has nested content — sub-pages, toggles,
+      // columns, callouts, synced blocks, etc.
+      if (block.has_children && block.id) {
         const sub = await fetchNotionContent(block.id, depth + 1)
         lines.push(...sub)
       }

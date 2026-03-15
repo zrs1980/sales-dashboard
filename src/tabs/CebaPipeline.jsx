@@ -8,6 +8,7 @@ import NotionNotes from '../components/NotionNotes.jsx'
 import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
 import PipelineInsights from '../components/PipelineInsights.jsx'
+import { useSortState, sortDeals, SortTh, FilterBar, selectStyle } from '../components/TableSort.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -16,12 +17,12 @@ function RiskFlag({ days }) {
   return <span className="risk-flag risk-green">🟢 {days}d</span>
 }
 
-function DealRow({ deal }) {
+function DealRow({ deal, stageMap }) {
   const p = deal.properties || {}
   const id = deal.id
   const name = p.dealname || 'Unnamed Deal'
   const amount = parseFloat(p.amount || 0)
-  const stage = getStageLabel(p.dealstage)
+  const stage = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
   const badgeClass = getStageBadgeClass(stage)
   const prob = parseFloat(p.hs_deal_stage_probability || getStageProb(stage))
   const weighted = amount * prob
@@ -68,15 +69,25 @@ export default function CebaPipeline({ data, loading }) {
 
   const open = (data.open || []).filter(d => !closedStageIds.has(d.properties?.dealstage))
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
-  const [selectedStage, setSelectedStage] = useState(null)
 
-  const visibleDeals = selectedStage
+  // Filters — stageFilter is shared with the DealAnalytics chart click
+  const [stageFilter, setStageFilter] = useState('')
+  const [sort, toggleSort] = useSortState()
+
+  const stageOptions = [...new Set(open.map(d => {
+    const p = d.properties || {}
+    return (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
+  }))].sort()
+
+  const filtered = stageFilter
     ? open.filter(d => {
         const p = d.properties || {}
         const label = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
-        return label === selectedStage
+        return label === stageFilter
       })
     : open
+
+  const visibleDeals = sortDeals(filtered, sort.key, sort.dir, stageMap)
 
   return (
     <>
@@ -88,38 +99,55 @@ export default function CebaPipeline({ data, loading }) {
         </div>
       </div>
 
-      <DealAnalytics deals={open} stageMap={stageMap} selectedStage={selectedStage} onStageClick={setSelectedStage} />
+      <DealAnalytics
+        deals={open}
+        stageMap={stageMap}
+        selectedStage={stageFilter}
+        onStageClick={s => setStageFilter(s || '')}
+      />
 
       <PipelineInsights deals={open} stageMap={stageMap} pipeline="ceba" />
 
       <div className="panel">
         <div className="panel-header">
           <div>
-            <div className="panel-title">
-              Open CEBA Deals
-              {selectedStage && <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 400, color: 'var(--text-secondary)' }}>· {selectedStage}</span>}
-            </div>
-            <div className="panel-sub">
-              {selectedStage
-                ? <>{visibleDeals.length} deal{visibleDeals.length !== 1 ? 's' : ''} · <button onClick={() => setSelectedStage(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: 12 }}>Show all ×</button></>
-                : 'Click deal name to open in HubSpot'
-              }
-            </div>
+            <div className="panel-title">Open CEBA Deals</div>
+            <div className="panel-sub">Click column headers to sort · Click deal name to open in HubSpot</div>
           </div>
         </div>
+
+        <FilterBar
+          count={visibleDeals.length}
+          total={open.length}
+          hasFilters={!!stageFilter}
+          onClear={() => setStageFilter('')}
+        >
+          <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={selectStyle}>
+            <option value="">All Stages</option>
+            {stageOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </FilterBar>
+
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Deal Name</th><th>Stage</th><th>Amount</th><th>Weighted</th>
-                <th>Close Date</th><th>Days in Stage</th><th>Last Activity</th>
-                <th>Notes</th><th>Notion</th><th>AI Review</th>
+                <SortTh sortKey="dealname" sort={sort} onSort={toggleSort}>Deal Name</SortTh>
+                <SortTh sortKey="stage" sort={sort} onSort={toggleSort}>Stage</SortTh>
+                <SortTh sortKey="amount" sort={sort} onSort={toggleSort}>Amount</SortTh>
+                <SortTh sortKey="weighted" sort={sort} onSort={toggleSort}>Weighted</SortTh>
+                <SortTh sortKey="closedate" sort={sort} onSort={toggleSort}>Close Date</SortTh>
+                <SortTh sortKey="daysInStage" sort={sort} onSort={toggleSort}>Days in Stage</SortTh>
+                <SortTh sortKey="lastActivity" sort={sort} onSort={toggleSort}>Last Activity</SortTh>
+                <SortTh sortKey="notes" sort={sort} onSort={toggleSort}>Notes</SortTh>
+                <th>Notion</th>
+                <th>AI Review</th>
               </tr>
             </thead>
             <tbody>
-              {visibleDeals.map(d => <DealRow key={d.id} deal={d} />)}
+              {visibleDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
               {visibleDeals.length === 0 && (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open CEBA deals</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No deals match the current filters</td></tr>
               )}
             </tbody>
           </table>

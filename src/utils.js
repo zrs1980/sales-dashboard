@@ -6,36 +6,30 @@ export function fmtCurrency(val) {
   return '$' + n.toFixed(0)
 }
 
+function parseHsDate(raw) {
+  if (!raw) return null
+  const s = String(raw)
+  // Pure digits = ms timestamp; anything else (ISO string, YYYY-MM-DD) = parse directly
+  const d = /^\d+$/.test(s) ? new Date(parseInt(s)) : new Date(s)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export function fmtDate(raw) {
-  if (!raw) return '—'
-  try {
-    const d = String(raw).length > 10
-      ? new Date(parseInt(raw))
-      : new Date(raw + 'T00:00:00Z')
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-  } catch {
-    return String(raw).slice(0, 10)
-  }
+  const d = parseHsDate(raw)
+  if (!d) return '—'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
 export function daysSince(raw) {
-  if (!raw) return null
-  try {
-    const d = String(raw).length > 10 ? new Date(parseInt(raw)) : new Date(raw)
-    return Math.floor((Date.now() - d.getTime()) / 86400000)
-  } catch {
-    return null
-  }
+  const d = parseHsDate(raw)
+  if (!d) return null
+  return Math.floor((Date.now() - d.getTime()) / 86400000)
 }
 
 export function daysUntil(raw) {
-  if (!raw) return null
-  try {
-    const d = new Date(raw)
-    return Math.floor((d.getTime() - Date.now()) / 86400000)
-  } catch {
-    return null
-  }
+  const d = parseHsDate(raw)
+  if (!d) return null
+  return Math.floor((d.getTime() - Date.now()) / 86400000)
 }
 
 export function extractNotionPageId(url) {

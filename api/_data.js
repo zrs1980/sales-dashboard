@@ -74,10 +74,11 @@ export async function fetchSdr() {
     limit: 100,
   })
   const total = data.total || 0
+  const results = data.results || []
   const outcomes = {}
-  for (const call of data.results || []) {
+  for (const call of results) {
     const status = call.properties?.hs_call_status || 'UNKNOWN'
     outcomes[status] = (outcomes[status] || 0) + 1
   }
-  return { total, outcomes }
+  return { total, sample: results.length, outcomes }
 }

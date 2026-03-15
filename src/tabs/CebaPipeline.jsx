@@ -71,7 +71,10 @@ export default function CebaPipeline({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading CEBA pipeline…</div>
   if (!data) return null
 
-  const open = data.open || []
+  const open = (data.open || []).filter(d => {
+    const s = d.properties?.dealstage
+    return s !== 'closedwon' && s !== 'closedlost'
+  })
   const closed = data.closed || []
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const wonVal = closed
@@ -131,7 +134,7 @@ export default function CebaPipeline({ data, loading }) {
 
       <div className="panel">
         <div className="panel-header">
-          <div className="panel-title">All CEBA Deals — Historical</div>
+          <div className="panel-title">CEBA Closed Deals — Historical</div>
         </div>
         <div className="table-wrap">
           <table>

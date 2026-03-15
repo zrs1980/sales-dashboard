@@ -56,7 +56,10 @@ export default function LoopPipeline({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading Loop ERP pipeline…</div>
   if (!data) return null
 
-  const deals = data.deals || []
+  const deals = (data.deals || []).filter(d => {
+    const s = d.properties?.dealstage
+    return s !== '2681276110' && s !== '2681276111' && s !== 'closedwon' && s !== 'closedlost'
+  })
   const total = deals.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const weighted = deals.reduce((s, d) => {
     const amt = parseFloat(d.properties?.amount || 0)

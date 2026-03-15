@@ -26,10 +26,24 @@ export default function NotionNotes({ pageId, notionLink }) {
   }
 
   return (
-    <div>
-      <button className="notion-toggle" onClick={load}>
-        {state === 'loading' ? '…' : open ? 'Hide notes' : 'View notes'}
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {notionLink && (
+          <a
+            href={notionLink}
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
+          >
+            Open ↗
+          </a>
+        )}
+        {pageId && (
+          <button className="notion-toggle" onClick={load}>
+            {state === 'loading' ? '…' : open ? 'Hide notes' : 'View notes'}
+          </button>
+        )}
+      </div>
       {open && state === 'loaded' && lines.length > 0 && (
         <div className="notion-notes">
           {lines.map((line, i) => <div key={i}>{line}</div>)}

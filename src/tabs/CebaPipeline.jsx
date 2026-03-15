@@ -51,10 +51,17 @@ export default function CebaPipeline({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading CEBA pipeline…</div>
   if (!data) return null
 
-  const open = (data.open || []).filter(d => {
-    const s = d.properties?.dealstage
-    return s !== 'closedwon' && s !== 'closedlost'
-  })
+  const stageMap = data.stages || {}
+
+  const closedStageIds = new Set(
+    Object.entries(stageMap)
+      .filter(([, label]) => /closed/i.test(label))
+      .map(([id]) => id)
+  )
+  closedStageIds.add('closedwon')
+  closedStageIds.add('closedlost')
+
+  const open = (data.open || []).filter(d => !closedStageIds.has(d.properties?.dealstage))
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const alerts = generateAlerts(open)
 

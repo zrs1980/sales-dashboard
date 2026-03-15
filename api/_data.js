@@ -26,13 +26,20 @@ export async function fetchLoopDeals() {
   return data.results || []
 }
 
+export async function fetchCebaStages() {
+  const data = await hsGet(`/crm/v3/pipelines/deals/${CEBA_PIPELINE}/stages`)
+  const map = {}
+  for (const stage of data.results || []) {
+    map[stage.id] = stage.label
+  }
+  return map
+}
+
 export async function fetchCebaDeals() {
   const openData = await hsPost('/crm/v3/objects/deals/search', {
     filterGroups: [{
       filters: [
         { propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE },
-        { propertyName: 'dealstage', operator: 'NEQ', value: 'closedwon' },
-        { propertyName: 'dealstage', operator: 'NEQ', value: 'closedlost' },
       ]
     }],
     properties: DEAL_PROPS,

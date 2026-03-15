@@ -75,11 +75,8 @@ export default function CebaPipeline({ data, loading }) {
     const s = d.properties?.dealstage
     return s !== 'closedwon' && s !== 'closedlost'
   })
-  const closed = data.closed || []
+  const closed = (data.closed || []).filter(d => d.properties?.dealstage === 'closedlost')
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
-  const wonVal = closed
-    .filter(d => d.properties?.dealstage === 'closedwon')
-    .reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const alerts = generateAlerts(open)
 
   return (
@@ -89,11 +86,6 @@ export default function CebaPipeline({ data, loading }) {
           <div className="kpi-label">Open Pipeline</div>
           <div className="kpi-value">{fmtCurrency(openVal)}</div>
           <div className="kpi-sub">{open.length} active deals</div>
-        </div>
-        <div className="kpi-card green">
-          <div className="kpi-label">Closed Won (All Time)</div>
-          <div className="kpi-value">{fmtCurrency(wonVal)}</div>
-          <div className="kpi-sub">Historical wins</div>
         </div>
       </div>
 

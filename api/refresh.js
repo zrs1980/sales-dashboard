@@ -1,4 +1,4 @@
-import { fetchLoopDeals, fetchLoopStages, fetchDealCountries, fetchCebaDeals, fetchCebaStages, fetchLeads, fetchSdr } from './_data.js'
+import { fetchLoopDeals, fetchLoopStages, fetchDealCountries, fetchCebaDeals, fetchCebaStages, fetchLeads, fetchSdr, fetchSdrMeetings } from './_data.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -12,13 +12,14 @@ export default async function handler(req, res) {
     const cebaStages = await fetchCebaStages()
     const ceba = await fetchCebaDeals()
     const leads = await fetchLeads()
-    const sdr = await fetchSdr()
+    const sdrCalls = await fetchSdr()
+    const sdrMeetings = await fetchSdrMeetings()
 
     res.json({
       loop: { deals: loopDeals, stages: loopStages },
       ceba: { ...ceba, stages: cebaStages },
       leads: { leads },
-      sdr,
+      sdr: { calls: sdrCalls, meetings: sdrMeetings },
       refreshedAt: new Date().toISOString(),
     })
   } catch (e) {

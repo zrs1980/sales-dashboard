@@ -111,20 +111,100 @@ export async function fetchLeads() {
   return results
 }
 
-export async function fetchSdr() {
-  const data = await hsPost('/crm/v3/objects/calls/search', {
-    filterGroups: [{
-      filters: [{ propertyName: 'hubspot_owner_id', operator: 'EQ', value: CALEB_OWNER_ID }]
-    }],
-    properties: ['hs_call_status', 'hs_timestamp', 'hs_call_direction', 'hs_call_duration'],
-    limit: 100,
-  })
-  const total = data.total || 0
-  const results = data.results || []
-  const outcomes = {}
-  for (const call of results) {
-    const status = call.properties?.hs_call_status || 'UNKNOWN'
-    outcomes[status] = (outcomes[status] || 0) + 1
+async function batchContactNames(objectType, objectIds) {
+  if (!objectIds.length) return {}
+  try {
+    const assocData = await hsPost(`/crm/v4/associations/${objectType}/contacts/batch/read`, {
+      inputs: objectIds.map(id => ({ id: String(id) })),
+    })
+    const objToContact = {}
+    const contactIds = new Set()
+    for (const r of assocData.results || []) {
+      const contacts = r.to || []
+      if (r.from?.id && contacts.length > 0) {
+        const cid = String(contacts[0].toObjectId)
+        objToContact[r.from.id] = cid
+        contactIds.add(cid)
+      }
+    }
+    if (!contactIds.size) return {}
+    const contactData = await hsPost('/crm/v3/objects/contacts/batch/read', {
+      inputs: [...contactIds].map(id => ({ id })),
+      properties: ['firstname', 'lastname'],
+    })
+    const names = {}
+    for (const c of contactData.results || []) {
+      names[c.id] = {
+        id: c.id,
+        name: [c.properties?.firstname, c.properties?.lastname].filter(Boolean).join(' ') || 'Unknown',
+      }
+    }
+    const result = {}
+    for (const [objId, cid] of Object.entries(objToContact)) {
+      result[objId] = names[cid] || { id: cid, name: '' }
+    }
+    return result
+  } catch {
+    return {}
   }
-  return { total, sample: results.length, outcomes }
+}
+
+export async function fetchSdr() {
+  const since = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const calls = []
+  let after = undefined
+  while (true) {
+    const data = await hsPost('/crm/v3/objects/calls/search', {
+      filterGroups: [{
+        filters: [
+          { propertyName: 'hubspot_owner_id', operator: 'EQ', value: CALEB_OWNER_ID },
+          { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
+        ]
+      }],
+      properties: ['hs_call_status', 'hs_timestamp', 'hs_call_direction', 'hs_call_duration', 'hs_call_body'],
+      sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+      limit: 100,
+      ...(after ? { after } : {}),
+    })
+    calls.push(...(data.results || []))
+    if (!data.paging?.next?.after || calls.length >= 1000) break
+    after = data.paging.next.after
+  }
+  // Fetch contact names for the most recent 100 calls
+  const contactMap = await batchContactNames('calls', calls.slice(0, 100).map(c => c.id))
+  for (const call of calls.slice(0, 100)) {
+    const c = contactMap[call.id]
+    if (c) { call.properties.contact_name = c.name; call.properties.contact_id = c.id }
+  }
+  return calls
+}
+
+export async function fetchSdrMeetings() {
+  const since = Date.now() - 90 * 24 * 60 * 60 * 1000
+  let data
+  try {
+    data = await hsPost('/crm/v3/objects/meetings/search', {
+      filterGroups: [{
+        filters: [
+          { propertyName: 'hubspot_owner_id', operator: 'EQ', value: CALEB_OWNER_ID },
+          { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
+        ]
+      }],
+      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type'],
+      sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+      limit: 100,
+    })
+  } catch { return [] }
+
+  const meetings = (data.results || []).filter(m => {
+    const t = (m.properties?.hs_meeting_type || '').toLowerCase()
+    return t.includes('sdr') || t.includes('sales appointment') || t.includes('appointment')
+  })
+
+  const contactMap = await batchContactNames('meetings', meetings.map(m => m.id))
+  for (const m of meetings) {
+    const c = contactMap[m.id]
+    if (c) { m.properties.contact_name = c.name; m.properties.contact_id = c.id }
+  }
+  return meetings
 }

@@ -10,6 +10,47 @@ export async function fetchLoopStages() {
   return map
 }
 
+export async function fetchDealCountries(dealIds) {
+  if (!dealIds.length) return {}
+
+  // Step 1: batch-read deal→company associations
+  const assocData = await hsPost('/crm/v4/associations/deals/companies/batch/read', {
+    inputs: dealIds.map(id => ({ id: String(id) })),
+  })
+
+  const dealToCompany = {}
+  const companyIds = new Set()
+  for (const result of assocData.results || []) {
+    const dealId = result.from?.id
+    const companies = result.to || []
+    if (dealId && companies.length > 0) {
+      const companyId = String(companies[0].toObjectId)
+      dealToCompany[dealId] = companyId
+      companyIds.add(companyId)
+    }
+  }
+
+  if (!companyIds.size) return {}
+
+  // Step 2: batch-read company country
+  const companyData = await hsPost('/crm/v3/objects/companies/batch/read', {
+    inputs: [...companyIds].map(id => ({ id })),
+    properties: ['country'],
+  })
+
+  const companyCountry = {}
+  for (const company of companyData.results || []) {
+    companyCountry[company.id] = company.properties?.country || ''
+  }
+
+  // Step 3: map deal → country
+  const result = {}
+  for (const [dealId, companyId] of Object.entries(dealToCompany)) {
+    result[dealId] = companyCountry[companyId] || ''
+  }
+  return result
+}
+
 export async function fetchLoopDeals() {
   const data = await hsPost('/crm/v3/objects/deals/search', {
     filterGroups: [{

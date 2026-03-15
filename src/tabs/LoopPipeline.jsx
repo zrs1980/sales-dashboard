@@ -44,6 +44,7 @@ function DealRow({ deal, stageMap }) {
     <tr>
       <td><a className="deal-link" href={hsUrl} target="_blank" rel="noreferrer">{name}</a></td>
       <td><span className={`badge ${badgeClass}`}>{stage}</span></td>
+      <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.company_country || '—'}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(amount)}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(weighted)}</td>
       <td><CloseDate raw={p.closedate} /></td>
@@ -138,6 +139,7 @@ export default function LoopPipeline({ data, loading }) {
               <tr>
                 <th>Deal Name</th>
                 <th>Stage</th>
+                <th>Country</th>
                 <th>Amount</th>
                 <th>Weighted</th>
                 <th>Close Date</th>
@@ -151,7 +153,7 @@ export default function LoopPipeline({ data, loading }) {
             <tbody>
               {visibleDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
               {visibleDeals.length === 0 && (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open deals found</td></tr>
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open deals found</td></tr>
               )}
             </tbody>
           </table>

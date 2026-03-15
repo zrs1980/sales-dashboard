@@ -23,7 +23,11 @@ export default function App() {
     setError(null)
     try {
       const res = await fetch('/api/refresh')
-      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      if (!res.ok) {
+        let msg = `Server error: ${res.status}`
+        try { const body = await res.json(); if (body.error) msg = body.error } catch {}
+        throw new Error(msg)
+      }
       const json = await res.json()
       setData(json)
       setLastRefreshed(new Date())

@@ -52,6 +52,7 @@ export default function App() {
     <>
       <div className="header">
         <div className="header-left">
+          <img src="/loop-erp-logo.png" alt="Loop ERP" style={{ height: 40, marginBottom: 6 }} />
           <h1>Sales Command Center</h1>
           <p>Live data from HubSpot · Ryan McQuillan
             {lastRefreshedStr && <> · Last refreshed: {lastRefreshedStr}</>}

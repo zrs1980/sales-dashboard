@@ -58,10 +58,19 @@ export default function LoopPipeline({ data, loading }) {
 
   const stageMap = data.stages || {}
 
-  const deals = (data.deals || []).filter(d => {
-    const s = d.properties?.dealstage
-    return s !== '2681276110' && s !== '2681276111' && s !== 'closedwon' && s !== 'closedlost'
-  })
+  // Build set of closed stage IDs from the live HubSpot stage map
+  const closedStageIds = new Set(
+    Object.entries(stageMap)
+      .filter(([, label]) => /closed/i.test(label))
+      .map(([id]) => id)
+  )
+  // Also cover hardcoded fallbacks in case stageMap is empty
+  closedStageIds.add('2681276110')
+  closedStageIds.add('2681276111')
+  closedStageIds.add('closedwon')
+  closedStageIds.add('closedlost')
+
+  const deals = (data.deals || []).filter(d => !closedStageIds.has(d.properties?.dealstage))
   const total = deals.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const weighted = deals.reduce((s, d) => {
     const amt = parseFloat(d.properties?.amount || 0)

@@ -4,6 +4,7 @@ import {
   generateAlerts, extractNotionPageId
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
+import AiReview from '../components/AiReview.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -43,6 +44,7 @@ function DealRow({ deal }) {
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.num_notes != null ? `${p.num_notes} notes` : '—'}</td>
       <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} /></td>
+      <td><AiReview dealId={id} notionPageId={notionPageId} dealName={name} /></td>
     </tr>
   )
 }
@@ -97,13 +99,13 @@ export default function CebaPipeline({ data, loading }) {
               <tr>
                 <th>Deal Name</th><th>Stage</th><th>Amount</th><th>Weighted</th>
                 <th>Close Date</th><th>Days in Stage</th><th>Last Activity</th>
-                <th>Notes</th><th>Notion</th>
+                <th>Notes</th><th>Notion</th><th>AI Review</th>
               </tr>
             </thead>
             <tbody>
               {open.map(d => <DealRow key={d.id} deal={d} />)}
               {open.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open CEBA deals</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open CEBA deals</td></tr>
               )}
             </tbody>
           </table>

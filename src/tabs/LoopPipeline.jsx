@@ -5,6 +5,7 @@ import {
   generateAlerts, extractNotionPageId
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
+import AiReview from '../components/AiReview.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -48,6 +49,7 @@ function DealRow({ deal, stageMap }) {
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>
       <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} /></td>
+      <td><AiReview dealId={id} notionPageId={notionPageId} dealName={name} /></td>
     </tr>
   )
 }
@@ -129,12 +131,13 @@ export default function LoopPipeline({ data, loading }) {
                 <th>Last Activity</th>
                 <th>Notes</th>
                 <th>Notion</th>
+                <th>AI Review</th>
               </tr>
             </thead>
             <tbody>
               {deals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
               {deals.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open deals found</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open deals found</td></tr>
               )}
             </tbody>
           </table>

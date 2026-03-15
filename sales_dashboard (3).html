@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #ffffff;
+    --off-white: #f8f7f4;
+    --light-gray: #f1f0ed;
+    --mid-gray: #e5e3de;
+    --border: #dddbd5;
+    --text-primary: #1a1916;
+    --text-secondary: #6b6860;
+    --text-muted: #9e9b94;
+    --accent: #2563d4;
+    --accent-light: #eff4ff;
+    --accent-mid: #bfcfef;
+    --success: #16a34a;
+    --success-light: #f0fdf4;
+    --warning: #d97706;
+    --warning-light: #fffbeb;
+    --danger: #dc2626;
+    --danger-light: #fef2f2;
+    --purple: #7c3aed;
+    --purple-light: #f5f3ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--off-white);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  /* HEADER */
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  }
+  .header-left h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+  .header-left p {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 1px;
+  }
+  .header-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--light-gray);
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+  /* TABS */
+  .tabs {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+  }
+  .tab {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+  /* MAIN CONTENT */
+  .content { padding: 28px 32px; max-width: 1600px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+  /* KPI ROW */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    border-radius: 10px 10px 0 0;
+  }
+  .kpi-card.green::before { background: var(--success); }
+  .kpi-card.orange::before { background: var(--warning); }
+  .kpi-card.red::before { background: var(--danger); }
+  .kpi-card.purple::before { background: var(--purple); }
+  .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 4px;
+    line-height: 1;
+  }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+  /* PANEL */
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.1px;
+  }
+  .panel-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  /* TABLES */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: var(--off-white);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--light-gray);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--off-white); }
+  .deal-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .deal-link:hover { text-decoration: underline; }
+  /* BADGES */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .badge-blue { background: var(--accent-light); color: var(--accent); }
+  .badge-green { background: var(--success-light); color: var(--success); }
+  .badge-orange { background: var(--warning-light); color: var(--warning); }
+  .badge-red { background: var(--danger-light); color: var(--danger); }
+  .badge-purple { background: var(--purple-light); color: var(--purple); }
+  .badge-gray { background: var(--light-gray); color: var(--text-secondary); }
+  /* RISK FLAGS */
+  .risk-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+  }
+  .risk-red { color: var(--danger); }
+  .risk-orange { color: var(--warning); }
+  .risk-green { color: var(--success); }
+  /* INSIGHT BLOCK */
+  .insight-block {
+    background: var(--off-white);
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 4px;
+    max-width: 320px;
+  }
+  .insight-block.warn { border-left-color: var(--warning); }
+  .insight-block.danger { border-left-color: var(--danger); }
+  /* BAR CHART */
+  .chart-container { padding: 20px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { font-size: 12px; color: var(--text-secondary); width: 90px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: var(--light-gray); border-radius: 4px; height: 28px; position: relative; overflow: hidden; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    transition: width 0.5s ease;
+    min-width: 40px;
+  }
+  .bar-fill.green { background: var(--success); }
+  .bar-fill.orange { background: var(--warning); }
+  .bar-fill span { font-size: 11px; font-weight: 600; color: white; font-family: 'DM Mono', monospace; }
+  .bar-amount { font-size: 12px; color: var(--text-muted); width: 80px; font-family: 'DM Mono', monospace; flex-shrink: 0; }
+  /* GRID 2 col */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  /* SDR DATE SELECTOR */
+  .date-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .date-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .date-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .date-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  /* SDR METRICS */
+  .sdr-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 16px 20px; }
+  .sdr-metric { text-align: center; }
+  .sdr-metric-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; line-height: 1; }
+  .sdr-metric-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .sdr-metric-sub { font-size: 11px; margin-top: 2px; }
+  /* DONUT CHART */
+  .outcome-bars { padding: 16px 20px; }
+  .outcome-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .outcome-label { font-size: 12px; color: var(--text-secondary); width: 200px; flex-shrink: 0; }
+  .outcome-bar { flex: 1; background: var(--light-gray); border-radius: 3px; height: 20px; overflow: hidden; }
+  .outcome-fill { height: 100%; border-radius: 3px; display: flex; align-items: center; padding: 0 8px; }
+  .outcome-fill span { font-size: 11px; font-weight: 600; color: white; font-family: 'DM Mono', monospace; }
+  .outcome-pct { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-muted); width: 40px; }
+  /* CALL VOLUME CHART */
+  .call-chart { padding: 20px; }
+  .call-bars { display: flex; align-items: flex-end; gap: 8px; height: 140px; }
+  .call-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+  .call-bar-container { flex: 1; display: flex; align-items: flex-end; width: 100%; position: relative; }
+  .call-bar-bg { position: absolute; bottom: 0; left: 0; right: 0; background: var(--light-gray); border-radius: 4px 4px 0 0; }
+  .call-bar-actual { position: absolute; bottom: 0; left: 2px; right: 2px; border-radius: 3px 3px 0 0; transition: height 0.5s ease; }
+  .call-bar-target { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--danger); opacity: 0.5; }
+  .call-bar-label { font-size: 10px; color: var(--text-muted); text-align: center; }
+  .call-bar-count { font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--text-secondary); }
+  /* LEADS TABLE */
+  .lead-status-badge { font-size: 10px; padding: 2px 7px; border-radius: 3px; font-weight: 600; }
+  .touches-bar { display: flex; align-items: center; gap: 6px; }
+  .touches-dots { display: flex; gap: 2px; }
+  .touch-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .touch-dot.filled { background: var(--accent); }
+  .touch-dot.done { background: var(--success); }
+  /* PRIORITY ALERT */
+  .priority-alert {
+    background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%);
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .priority-alert h3 { font-size: 13px; font-weight: 600; color: #92400e; margin-bottom: 8px; }
+  .priority-item { font-size: 12px; color: #78350f; padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+  .priority-item::before { content: '⚡'; }
+  /* PAGINATION */
+  .pagination { padding: 12px 20px; display: flex; align-items: center; justify-content: between; border-top: 1px solid var(--border); gap: 8px; }
+  .pagination-info { font-size: 12px; color: var(--text-muted); flex: 1; }
+  .pagination-btn { padding: 5px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--white); cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+  .pagination-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pagination-btn:disabled { opacity: 0.4; cursor: default; }
+  .search-box { padding: 8px 16px; border: 1px solid var(--border); border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--white); color: var(--text-primary); width: 240px; }
+  .search-box:focus { outline: none; border-color: var(--accent); }
+  .filter-row { display: flex; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .filter-select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; background: var(--white); color: var(--text-secondary); cursor: pointer; }
+  .filter-select:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Sales Command Center</h1>
+    <p>Live data from HubSpot · Ryan McQuillan</p>
+  </div>
+  <div class="header-date">Thu, March 12, 2026</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('loop')">Loop ERP Pipeline</div>
+  <div class="tab" onclick="switchTab('ceba')">CEBA Pipeline</div>
+  <div class="tab" onclick="switchTab('sdr')">SDR Activities</div>
+  <div class="tab" onclick="switchTab('leads')">Lead Dashboard</div>
+</div>
+
+<!-- ===== LOOP ERP ===== -->
+<div id="tab-loop" class="section active content">
+
+  <div class="priority-alert">
+    <h3>⚡ Pipeline Meeting Priorities — Action Required This Week</h3>
+    <div class="priority-item">STSS Strategic Telecom — $60K · Closes Mar 31 · 125 days stalled · ⚠️ STSS IS ALSO A CEBA CLIENT (active implementation, Jason Tutanes). Budget meeting Mar 10. Coordinate with CEBA team before Loop outreach. Key req: consigned inventory.</div>
+    <div class="priority-item">Enviroo Project Co. — $40K · Close date updated to Apr 24 · 79 days in Add'l Education. Last note Mar 11. Follow up to understand updated decision timeline.</div>
+    <div class="priority-item">ViaTeK Solutions — $45K · Closes Mar 31 · 106 days post-demo. Last note Mar 4. 20 days to close — needs clear next step or stage revision urgently.</div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Pipeline</div>
+      <div class="kpi-value">$505K</div>
+      <div class="kpi-sub">13 open deals</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Weighted Value</div>
+      <div class="kpi-value">$191K</div>
+      <div class="kpi-sub">Probability-adjusted</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Closing This Month</div>
+      <div class="kpi-value">$105K</div>
+      <div class="kpi-sub">2 deals · Mar 31</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Avg Deal Size</div>
+      <div class="kpi-value">$38.8K</div>
+      <div class="kpi-sub">Per open deal</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Avg Days in Stage</div>
+      <div class="kpi-value">34</div>
+      <div class="kpi-sub">Excl. stalled deals</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Stage Distribution</div>
+          <div class="panel-sub">By deal count and value</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div class="bar-row">
+            <div class="bar-label">New Deal</div>
+            <div class="bar-track"><div class="bar-fill" style="width:23%"><span>3</span></div></div>
+            <div class="bar-amount">$130K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Req. Analysis</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:30%"><span>4</span></div></div>
+            <div class="bar-amount">$160K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Demo Booked</div>
+            <div class="bar-track"><div class="bar-fill" style="width:23%"><span>3</span></div></div>
+            <div class="bar-amount">$110K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Demo Complete</div>
+            <div class="bar-track"><div class="bar-fill orange" style="width:8%"><span>1</span></div></div>
+            <div class="bar-amount">$45K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Add'l Education</div>
+            <div class="bar-track"><div class="bar-fill orange" style="width:15%"><span>2</span></div></div>
+            <div class="bar-amount">$100K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Close Date Distribution</div>
+          <div class="panel-sub">Deals by month, total value</div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div class="bar-row">
+            <div class="bar-label">Mar 2026</div>
+            <div class="bar-track"><div class="bar-fill orange" style="width:73%"><span>$105K — 2 deals</span></div></div>
+            <div class="bar-amount">$105K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Apr 2026</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:83%"><span>$120K — 3 deals</span></div></div>
+            <div class="bar-amount">$120K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">May 2026</div>
+            <div class="bar-track"><div class="bar-fill" style="width:83%"><span>$230K — 6 deals</span></div></div>
+            <div class="bar-amount">$230K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Jun 2026</div>
+            <div class="bar-track"><div class="bar-fill" style="width:14%"><span>$20K</span></div></div>
+            <div class="bar-amount">$20K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Jul 2026</div>
+            <div class="bar-track"><div class="bar-fill" style="width:21%"><span>$30K</span></div></div>
+            <div class="bar-amount">$30K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Open Deals — Full Pipeline View</div>
+        <div class="panel-sub">Notes & activity insights · Click deal name to open in HubSpot</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Deal Name</th>
+            <th>Stage</th>
+            <th>Amount</th>
+            <th>Weighted</th>
+            <th>Close Date</th>
+            <th>Days in Stage</th>
+            <th>Last Contact</th>
+            <th>Notes</th>
+            <th>Notion</th>
+            <th>Insight</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/207662035686" target="_blank">(STSS) Strategic Telecom</a></td>
+            <td><span class="badge badge-orange">Add'l Education</span></td>
+            <td>$60,000</td>
+            <td>$42,000</td>
+            <td><span style="color:var(--danger);font-weight:600">Mar 31 ⚠</span></td>
+            <td><span class="risk-flag risk-red">🔴 125d</span></td>
+            <td><span style="color:var(--danger)">Nov 21</span></td>
+            <td>10 notes</td>
+            <td style="text-align:center"><a class="deal-link" href="https://www.notion.so/cebasolutions" target="_blank" title="View in Notion">📋</a></td>
+            <td><div class="insight-block danger">⚠️ STSS IS ALREADY A CEBA CLIENT — active implementation underway (CEBA Project Lead: Jason Tutanes). Budget meeting happened Mar 10. Dashboard work ongoing (Mar 4–5 check-ins). Key Loop requirement: consigned inventory. Demo dry run Jan 12, internal review Jan 16. Loop ERP deal may need to be coordinated with CEBA implementation team. Discovery 11/20: 2-location scrap/IT business, 40 hrs/month manual reporting, Razor ERP, 10 sales reps, BOM/lot tracking, warehouse scanning. Re-engage immediately — 125+ days stalled, last Loop contact Nov 21.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/246937391823" target="_blank">Enviroo Project Co.</a></td>
+            <td><span class="badge badge-orange">Add'l Education</span></td>
+            <td>$40,000</td>
+            <td>$28,000</td>
+            <td>Apr 24</td>
+            <td><span class="risk-flag risk-orange">🟠 79d</span></td>
+            <td>Mar 11</td>
+            <td>69 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">Highly engaged (69 notes — most active deal). Close date extended to Apr 24. Last note Mar 11. Follow up to understand updated evaluation timeline.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/227660510923" target="_blank">ViaTeK Solutions</a></td>
+            <td><span class="badge badge-blue">Demo Complete</span></td>
+            <td>$45,000</td>
+            <td>$20,250</td>
+            <td><span style="color:var(--danger);font-weight:600">Mar 31 ⚠</span></td>
+            <td><span class="risk-flag risk-red">🔴 106d</span></td>
+            <td>Mar 4</td>
+            <td>56 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">106 days post-demo with no stage movement. 56 notes — actively worked. Last call Mar 4. Needs clear next step or stage revision. Closes in 20 days.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/288903902917" target="_blank">Globe Metal</a></td>
+            <td><span class="badge badge-blue">Demo Booked</span></td>
+            <td>$50,000</td>
+            <td>$20,000</td>
+            <td>Apr 30</td>
+            <td><span class="risk-flag risk-green">🟢 31d</span></td>
+            <td>Mar 9</td>
+            <td>14 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Active engagement, last contact today. Demo booked — prep materials. 14 notes showing consistent progression.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/302579429095" target="_blank">Metalum</a></td>
+            <td><span class="badge badge-green">Req. Analysis</span></td>
+            <td>$40,000</td>
+            <td>$12,000</td>
+            <td>May 29</td>
+            <td><span class="risk-flag risk-green">🟢 17d</span></td>
+            <td>Mar 11</td>
+            <td>18 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">18 notes, active today. Requirements analysis ongoing — push to lock in demo date.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/305111678654" target="_blank">AJ Recycling Solutions</a></td>
+            <td><span class="badge badge-green">Req. Analysis</span></td>
+            <td>$30,000</td>
+            <td>$9,000</td>
+            <td>May 25</td>
+            <td><span class="risk-flag risk-green">🟢 13d</span></td>
+            <td>Mar 5</td>
+            <td>4 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Early stage, lighter activity (4 notes). In requirements analysis. Needs deeper discovery to build momentum.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/304631728879" target="_blank">C&D Scrap Metal</a></td>
+            <td><span class="badge badge-blue">Demo Booked</span></td>
+            <td>$40,000</td>
+            <td>$16,000</td>
+            <td>May 25</td>
+            <td><span class="risk-flag risk-green">🟢 13d</span></td>
+            <td>Mar 9</td>
+            <td>7 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Demo booked and recently active (contact today). 7 notes showing progression. Strong momentum.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/307178061537" target="_blank">Bright Metals</a></td>
+            <td><span class="badge badge-green">Req. Analysis</span></td>
+            <td>$60,000</td>
+            <td>$12,000</td>
+            <td>May 29</td>
+            <td><span class="risk-flag risk-green">🟢 10d</span></td>
+            <td>Mar 11</td>
+            <td>12 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Largest deal in early stage at $60K. Active today. 12 notes — push to accelerate to demo given deal size.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/309858900680" target="_blank">Langer Industrial</a></td>
+            <td><span class="badge badge-green">Req. Analysis</span></td>
+            <td>$30,000</td>
+            <td>$9,000</td>
+            <td>Apr 10</td>
+            <td><span class="risk-flag risk-green">🟢 7d</span></td>
+            <td>Mar 5</td>
+            <td>0 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">No notes yet — new deal created Mar 2. Closes Apr 10. Needs discovery call and documentation ASAP.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/306864859866" target="_blank">Metal Recycling Corporation</a></td>
+            <td><span class="badge badge-gray">New Deal</span></td>
+            <td>$70,000</td>
+            <td>$7,000</td>
+            <td>May 29</td>
+            <td><span class="risk-flag risk-green">🟢 10d</span></td>
+            <td>Mar 9</td>
+            <td>15 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Call Mar 3: Confirmed legal entity name "Metal Recycling Corporation." Spoke with Damon — goal is future-state planning. 15 notes. Active and progressing.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/306429035254" target="_blank">Gemini Corporation</a></td>
+            <td><span class="badge badge-gray">New Deal</span></td>
+            <td>$30,000</td>
+            <td>$3,000</td>
+            <td>Jul 31</td>
+            <td><span class="risk-flag risk-green">🟢 11d</span></td>
+            <td>Mar 5</td>
+            <td>6 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">Longest close date (Jul). 6 notes, latest contact Mar 5. Nurture cadence appropriate for timeline.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/295238331079" target="_blank">Outlast Inc.</a></td>
+            <td><span class="badge badge-gray">New Deal</span></td>
+            <td>$30,000</td>
+            <td>$3,000</td>
+            <td>May 13</td>
+            <td><span class="risk-flag risk-green">🟢 25d</span></td>
+            <td>Mar 5</td>
+            <td>8 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block">8 notes, last contact Mar 5. New deal stage 25 days — needs to progress. Push for requirements call.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/311950632684" target="_blank">Mandolé Orchard</a></td>
+            <td><span class="badge badge-blue">Demo Booked</span></td>
+            <td>$20,000</td>
+            <td>$8,000</td>
+            <td>Jun 3</td>
+            <td><span class="risk-flag risk-green">🟢 4d</span></td>
+            <td>Mar 6</td>
+            <td>0 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">New deal, demo booked quickly but 0 notes. Needs pre-demo discovery documented.</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CEBA ===== -->
+<div id="tab-ceba" class="section content" style="display:none">
+
+  <div class="priority-alert">
+    <h3>⚡ CEBA Priority Alert</h3>
+    <div class="priority-item">Oxide Computer — $50K · Closes Mar 13 (2 DAYS) · Delivery team already listing as "new project starting" (Mar 9 meeting). SOW reviewed Jan 21. Duro PLM integration required. CLOSE OR UPDATE CLOSE DATE TODAY.</div>
+    <div class="priority-item">Earth Science — $20K · Closes Mar 31 · RETURNING PROSPECT from May 2024 (prior requirements analysis with Celigo). Flagged in Mar 9 delivery meeting. 0 notes — needs immediate outreach.</div>
+    <div class="priority-item">MJ Holding — $50K · May 29 close · 40 days in New Deal stage. Last contact Feb 20. Needs re-engagement.</div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Open Pipeline</div>
+      <div class="kpi-value">$120K</div>
+      <div class="kpi-sub">3 active deals</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Closed Won (All Time)</div>
+      <div class="kpi-value">$186K</div>
+      <div class="kpi-sub">Triton, Spectro, Nautical, Liquid Pulse</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Win Rate</div>
+      <div class="kpi-value">~50%</div>
+      <div class="kpi-sub">4 won / ~4 lost</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Closes in 2 Days</div>
+      <div class="kpi-value">1</div>
+      <div class="kpi-sub">Oxide — Mar 13</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Close Date Distribution</div></div>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div class="bar-row">
+            <div class="bar-label">Mar 13 🚨</div>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--danger)"><span>$50K — Oxide (2 DAYS)</span></div></div>
+            <div class="bar-amount">$50K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Mar 31</div>
+            <div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--warning)"><span>$20K — Earth Science</span></div></div>
+            <div class="bar-amount">$20K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">May 2026</div>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--accent)"><span>$50K — MJ Holding</span></div></div>
+            <div class="bar-amount">$50K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Historical Closed Won</div></div>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div class="bar-row">
+            <div class="bar-label">Nautical</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:100%"><span>$93,000</span></div></div>
+            <div class="bar-amount">$93K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Spectro Cloud</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:45%"><span>$42,000</span></div></div>
+            <div class="bar-amount">$42K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Triton Midstream</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:37%"><span>$35,000</span></div></div>
+            <div class="bar-amount">$35K</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">Liquid Pulse</div>
+            <div class="bar-track"><div class="bar-fill green" style="width:17%"><span>$16,000</span></div></div>
+            <div class="bar-amount">$16K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Open CEBA Deals — Deal Insights</div>
+        <div class="panel-sub">Click deal name to open in HubSpot</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Deal Name</th>
+            <th>Stage</th>
+            <th>Amount</th>
+            <th>Weighted</th>
+            <th>Close Date</th>
+            <th>Days in Stage</th>
+            <th>Last Contact</th>
+            <th>Notes</th>
+            <th>Notion</th>
+            <th>Insight</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/253070201592" target="_blank">Oxide Computer</a></td>
+            <td><span class="badge badge-orange">Add'l Education</span></td>
+            <td>$50,000</td>
+            <td>$40,000</td>
+            <td><span style="color:var(--danger);font-weight:600">Mar 13 🚨 2 DAYS</span></td>
+            <td><span class="risk-flag risk-red">🔴 67d</span></td>
+            <td>Mar 11</td>
+            <td>25 notes</td>
+            <td style="text-align:center"><a class="deal-link" href="https://www.notion.so/cebasolutions" target="_blank" title="View in Notion">📋</a></td>
+            <td><div class="insight-block danger">🚨 LIKELY CLOSING — Mar 9 delivery meeting lists Oxide as a "new project starting." SOW reviewed Jan 21 (covers advanced revenue management + manufacturing). Duro PLM integration required (confirmed Feb 4). Note: "be careful about telling the board it's a done deal." Key contacts: Scott Orn, Todd Weldy, Scott Tagwerker. CEBA alignment meeting Mar 2. Close date Mar 13 — 2 days away. Update close date or mark won immediately.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/315216041715" target="_blank">Earth Science</a></td>
+            <td><span class="badge badge-blue">Add'l Education</span></td>
+            <td>$20,000</td>
+            <td>$16,000</td>
+            <td><span style="color:var(--warning);font-weight:600">Mar 31</span></td>
+            <td><span class="risk-flag risk-green">🟢 1d</span></td>
+            <td>—</td>
+            <td>0 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">📋 RETURNING PROSPECT — prior requirements analysis May 2024 with Celigo as integration partner. Flagged in Mar 9 delivery meeting as "potential new project." Celigo integration likely in scope. 0 notes on this deal — needs immediate outreach and discovery. Closes Mar 31.</div></td>
+          </tr>
+          <tr>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/279378868982" target="_blank">MJ Holding</a></td>
+            <td><span class="badge badge-gray">New Deal</span></td>
+            <td>$50,000</td>
+            <td>$5,000</td>
+            <td>May 29</td>
+            <td><span class="risk-flag risk-orange">🟠 40d</span></td>
+            <td>Feb 20</td>
+            <td>3 notes</td>
+            <td style="color:var(--text-muted);font-size:12px;text-align:center">—</td>
+            <td><div class="insight-block warn">New deal, low probability (10%), last contacted Feb 20 — 19 days ago. Only 3 notes. Needs re-engagement and discovery to determine fit and urgency.</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">All CEBA Deals (Historical)</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Deal Name</th><th>Status</th><th>Amount</th><th>Close Date</th><th>Link</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Nautical Fulfillment & Logistics</td><td><span class="badge badge-green">Closed Won</span></td><td>$93,000</td><td>Dec 20, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/215697428193" target="_blank">View →</a></td></tr>
+          <tr><td>Spectro Cloud</td><td><span class="badge badge-green">Closed Won</span></td><td>$42,000</td><td>Dec 28, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/172165283526" target="_blank">View →</a></td></tr>
+          <tr><td>Triton Midstream</td><td><span class="badge badge-green">Closed Won</span></td><td>$35,000</td><td>Nov 3, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/163828827840" target="_blank">View →</a></td></tr>
+          <tr><td>Eyexora</td><td><span class="badge badge-green">Closed Won</span></td><td>$18,349</td><td>Sep 4, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/145081162443" target="_blank">View →</a></td></tr>
+          <tr><td>Liquidpulse</td><td><span class="badge badge-green">Closed Won</span></td><td>$16,000</td><td>Sep 29, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/163874535145" target="_blank">View →</a></td></tr>
+          <tr><td>Traws Pharma</td><td><span class="badge badge-red">Closed Lost</span></td><td>$25,000</td><td>Dec 20, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/168935806680" target="_blank">View →</a></td></tr>
+          <tr><td>Happy Dad</td><td><span class="badge badge-red">Closed Lost</span></td><td>$40,000</td><td>Sep 25, 2025</td><td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-3/145653733072" target="_blank">View →</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SDR ACTIVITIES ===== -->
+<div id="tab-sdr" class="section content" style="display:none">
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Calls (All Time)</div>
+      <div class="kpi-value">2,317</div>
+      <div class="kpi-sub">Caleb Wilton · All logged</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Daily Target</div>
+      <div class="kpi-value">75</div>
+      <div class="kpi-sub">Calls per day</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Weekly Appt Target</div>
+      <div class="kpi-value">5</div>
+      <div class="kpi-sub">SDR → Sales appointments</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Appts Logged (HubSpot)</div>
+      <div class="kpi-value">1</div>
+      <div class="kpi-sub">⚠ Likely logging gap</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Connect Rate</div>
+      <div class="kpi-value">~11%</div>
+      <div class="kpi-sub">Connected calls / total dials</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Daily Call Volume</div>
+        <div class="panel-sub">Select a time range to filter</div>
+      </div>
+    </div>
+    <div class="date-selector" id="sdrDateSelector">
+      <button class="date-btn" onclick="setDateRange('today')">Today</button>
+      <button class="date-btn active" onclick="setDateRange('thisweek')">This Week</button>
+      <button class="date-btn" onclick="setDateRange('lastweek')">Last Week</button>
+      <button class="date-btn" onclick="setDateRange('thismonth')">This Month</button>
+      <button class="date-btn" onclick="setDateRange('lastmonth')">Last Month</button>
+    </div>
+    <div class="call-chart" id="callVolumeChart">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Call Outcome Breakdown</div>
+          <div class="panel-sub">Mar 6 + Mar 9 combined sample (187 calls)</div>
+        </div>
+      </div>
+      <div class="outcome-bars">
+        <div class="outcome-row">
+          <div class="outcome-label">No Answer</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:75.4%;background:#6b7280"><span>141</span></div></div>
+          <div class="outcome-pct">75.4%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Connected – Not Qualified</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:7.5%;background:#f59e0b"><span>14</span></div></div>
+          <div class="outcome-pct">7.5%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Connected</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:3.7%;background:#16a34a"><span>7</span></div></div>
+          <div class="outcome-pct">3.7%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Wrong Number / Other</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:4.3%;background:#dc2626"><span>8</span></div></div>
+          <div class="outcome-pct">4.3%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Left Voicemail</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:2.7%;background:#2563d4"><span>5</span></div></div>
+          <div class="outcome-pct">2.7%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Gatekeeper</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:1.1%;background:#7c3aed"><span>2</span></div></div>
+          <div class="outcome-pct">1.1%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">No Longer w/ Company</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:1.1%;background:#9ca3af"><span>2</span></div></div>
+          <div class="outcome-pct">1.1%</div>
+        </div>
+        <div class="outcome-row">
+          <div class="outcome-label">Received Referral</div>
+          <div class="outcome-bar"><div class="outcome-fill" style="width:0.5%;background:#0891b2"><span>1</span></div></div>
+          <div class="outcome-pct">0.5%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Best Practice Benchmarks</div>
+          <div class="panel-sub">SDR performance standards</div>
+        </div>
+      </div>
+      <div style="padding:16px 20px">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="background:var(--success-light);border:1px solid #86efac;border-radius:8px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--success)">✅ Call Volume — On Target</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Mar 9: 82 calls (target 75) · Mar 6: 105 calls. Caleb is meeting or beating daily targets.</div>
+          </div>
+          <div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:8px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--danger)">❌ Appointment Logging — Below Target</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Only 1 "SDR to Sales Appointment" logged in HubSpot vs 5/week target. This is almost certainly a logging gap — Caleb should log all booked appointments immediately.</div>
+          </div>
+          <div style="background:var(--warning-light);border:1px solid #fcd34d;border-radius:8px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--warning)">⚠ Connect Rate — Review Targeting</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">~11% connect rate. Industry benchmark is 10–15%. Consider refining call lists to target higher-quality prospects.</div>
+          </div>
+          <div style="background:var(--accent-light);border:1px solid var(--accent-mid);border-radius:8px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--accent)">💡 Action Item</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Use activity type "SDR to Sales Appointment" and outcomes "Connected Qualified" / "Meeting Booked" to track all booked appointments in HubSpot.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">SDR → Sales Appointments</div>
+        <div class="panel-sub">All logged SDR to Sales appointments · Click to view in HubSpot</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Meeting Title</th>
+            <th>Date Created</th>
+            <th>Appointment Date</th>
+            <th>Outcome</th>
+            <th>Owner</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:500">Hydro / Loop ERP - Ryan & Vahid Introduction</td>
+            <td><span class="badge badge-gray">Jan 28, 2026</span></td>
+            <td><span class="badge badge-blue">Mar 3, 2026 — 1:00 PM</span></td>
+            <td><span class="badge badge-orange">Connected Unqualified</span></td>
+            <td>Ryan McQuillan</td>
+            <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/objects/0-47/views/all/list" target="_blank">View →</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 20px;background:var(--warning-light);border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:#92400e">⚠ <strong>Only 1 appointment found in HubSpot.</strong> If Caleb is booking more meetings verbally or tracking elsewhere, those need to be logged as "SDR to Sales Appointment" activity type in HubSpot to meet the 5/week target visibility.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LEADS ===== -->
+<div id="tab-leads" class="section content" style="display:none">
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Leads</div>
+      <div class="kpi-value">419</div>
+      <div class="kpi-sub">lifecyclestage = lead</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">NEW</div>
+      <div class="kpi-value">405</div>
+      <div class="kpi-sub">Need outreach</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">OPEN</div>
+      <div class="kpi-value">10</div>
+      <div class="kpi-sub">In-progress leads</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">CONNECTED</div>
+      <div class="kpi-value">2</div>
+      <div class="kpi-sub">Engaged</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">0 Touches</div>
+      <div class="kpi-value">215</div>
+      <div class="kpi-sub">Never contacted</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Lead Creation by Month</div>
+        <div class="panel-sub">Inbound volume trend</div>
+      </div>
+    </div>
+    <div class="chart-container">
+      <div class="bar-chart">
+        <div class="bar-row"><div class="bar-label">Mar 2026</div><div class="bar-track"><div class="bar-fill" style="width:8%"><span></span></div></div><div class="bar-amount">10</div></div>
+        <div class="bar-row"><div class="bar-label">Feb 2026</div><div class="bar-track"><div class="bar-fill" style="width:32%"><span>40</span></div></div><div class="bar-amount">40</div></div>
+        <div class="bar-row"><div class="bar-label">Jan 2026</div><div class="bar-track"><div class="bar-fill" style="width:18%"><span>23</span></div></div><div class="bar-amount">23</div></div>
+        <div class="bar-row"><div class="bar-label">Dec 2025</div><div class="bar-track"><div class="bar-fill green" style="width:45%"><span>57</span></div></div><div class="bar-amount">57</div></div>
+        <div class="bar-row"><div class="bar-label">Nov 2025</div><div class="bar-track"><div class="bar-fill orange" style="width:100%"><span>126 — large cohort, re-engagement needed</span></div></div><div class="bar-amount">126</div></div>
+        <div class="bar-row"><div class="bar-label">Oct 2025</div><div class="bar-track"><div class="bar-fill" style="width:84%"><span>106</span></div></div><div class="bar-amount">106</div></div>
+        <div class="bar-row"><div class="bar-label">Sep 2025</div><div class="bar-track"><div class="bar-fill" style="width:21%"><span>26</span></div></div><div class="bar-amount">26</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header" style="flex-direction:column;align-items:flex-start;gap:12px">
+      <div>
+        <div class="panel-title">All Lead Records (418 total)</div>
+        <div class="panel-sub">Click name to open in HubSpot · Sorted by most recent</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <input type="text" class="search-box" id="leadSearch" placeholder="Search leads..." oninput="filterLeads()">
+      <select class="filter-select" id="leadStatusFilter" onchange="filterLeads()">
+        <option value="">All Statuses</option>
+        <option value="NEW">NEW</option>
+        <option value="OPEN">OPEN</option>
+        <option value="IN_PROGRESS">IN_PROGRESS</option>
+        <option value="CONNECTED">CONNECTED</option>
+        <option value="OPEN_DEAL">OPEN_DEAL</option>
+        <option value="BAD_TIMING">BAD_TIMING</option>
+        <option value="ATTEMPTED_TO_CONTACT">ATTEMPTED_TO_CONTACT</option>
+      </select>
+      <select class="filter-select" id="leadTouchFilter" onchange="filterLeads()">
+        <option value="">All Touch Counts</option>
+        <option value="0">0 touches (never contacted)</option>
+        <option value="1-3">1–3 touches</option>
+        <option value="4-6">4–6 touches</option>
+        <option value="7+">7+ touches</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Touches</th>
+            <th>Last Contact</th>
+            <th>Created</th>
+            <th>7-Touch Progress</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody id="leadsTableBody">
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="leadsPagination">
+      <span class="pagination-info" id="paginationInfo"></span>
+      <button class="pagination-btn" id="prevBtn" onclick="changePage(-1)">← Prev</button>
+      <span id="pageIndicator" style="font-size:12px;color:var(--text-secondary)"></span>
+      <button class="pagination-btn" id="nextBtn" onclick="changePage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== TAB SWITCHING =====
+function switchTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  event.target.classList.add('active');
+  if (tab === 'sdr') renderCallChart('thisweek');
+  if (tab === 'leads') renderLeads();
+}
+
+// ===== SDR CALL CHART DATA =====
+const callData = {
+  today: [
+    { date: 'Mon Mar 9', calls: 82 }
+  ],
+  thisweek: [
+    { date: 'Mon Mar 9', calls: 82 },
+    { date: 'Fri Mar 6', calls: 105 },
+  ],
+  lastweek: [
+    { date: 'Fri Feb 28', calls: 42 },
+    { date: 'Thu Feb 27', calls: 42 },
+    { date: 'Wed Feb 26', calls: 65 },
+    { date: 'Tue Feb 25', calls: 55 },
+    { date: 'Mon Feb 24', calls: 70 },
+  ],
+  thismonth: [
+    { date: 'Mon Mar 9', calls: 82 },
+    { date: 'Fri Mar 6', calls: 105 },
+    { date: 'Thu Mar 5', calls: 68 },
+    { date: 'Wed Mar 4', calls: 75 },
+    { date: 'Tue Mar 3', calls: 80 },
+    { date: 'Mon Mar 2', calls: 72 },
+  ],
+  lastmonth: [
+    { date: 'Feb 28', calls: 42 },
+    { date: 'Feb 27', calls: 42 },
+    { date: 'Feb 26', calls: 65 },
+    { date: 'Feb 25', calls: 55 },
+    { date: 'Feb 24', calls: 70 },
+    { date: 'Feb 21', calls: 88 },
+    { date: 'Feb 20', calls: 91 },
+    { date: 'Feb 19', calls: 78 },
+    { date: 'Feb 18', calls: 62 },
+    { date: 'Feb 17', calls: 83 },
+  ]
+};
+
+function setDateRange(range) {
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderCallChart(range);
+}
+
+function renderCallChart(range) {
+  const data = callData[range] || callData.thisweek;
+  const target = 75;
+  const max = Math.max(...data.map(d => d.calls), target + 10);
+  const chart = document.getElementById('callVolumeChart');
+  chart.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;padding:0 0 16px 0">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+        <div style="width:12px;height:12px;border-radius:2px;background:var(--accent)"></div> Calls Made
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)">
+        <div style="width:16px;border-top:2px dashed var(--danger)"></div> Daily Target (75)
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:12px;height:160px;border-bottom:1px solid var(--border);padding-bottom:8px">
+      ${data.map(d => {
+        const barH = Math.round((d.calls / max) * 140);
+        const targetH = Math.round((target / max) * 140);
+        const color = d.calls >= target ? '#16a34a' : '#dc2626';
+        return `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:160px;gap:4px">
+            <div style="font-size:11px;font-weight:600;font-family:'DM Mono',monospace;color:${color}">${d.calls}</div>
+            <div style="width:100%;position:relative;height:${barH}px">
+              <div style="position:absolute;bottom:0;left:0;right:0;height:${barH}px;background:${color};border-radius:4px 4px 0 0;opacity:0.85"></div>
+              <div style="position:absolute;bottom:${targetH}px;left:-4px;right:-4px;border-top:2px dashed var(--danger);opacity:0.6"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;padding-top:6px">
+      ${data.map(d => `<div style="flex:1;text-align:center;font-size:10px;color:var(--text-muted)">${d.date}</div>`).join('')}
+    </div>
+  `;
+}
+
+// ===== LEADS DATA (lifecyclestage=lead, owner: Ryan McQuillan) =====
+const allLeads = [
+  // March 2026 — NEW leads (Mar 12 refresh)
+  {id:455468846790,name:"Michael Doherty",company:"",status:"NEW",touches:3,lastContact:"2026-03-11",created:"2026-03-11"},
+  {id:242140363501,name:"Jason Riley",company:"",status:"NEW",touches:107,lastContact:"2026-03-12",created:"2025-09-11"},
+  {id:454928279244,name:"test test3",company:"asdf",status:"NEW",touches:0,lastContact:null,created:"2026-03-11"},
+  {id:455012583127,name:"test2 test2",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-11"},
+  {id:454628380406,name:"Matthew Strong",company:"",status:"NEW",touches:2,lastContact:"2026-03-10",created:"2026-03-10"},
+  {id:454305273575,name:"shady medhat",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-10"},
+  // March 2026 (existing)
+  {id:453828821736,name:"Tony",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-09"},
+  {id:453750423265,name:"tonym@irlindustries.ca",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-09"},
+  {id:453630282431,name:"Sankar Ganguri",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-09"},
+  {id:453886835397,name:"Anoosha Alla",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-03-09"},
+  {id:453631684295,name:"Jose Zamarron",company:"n2lab.io",status:"NEW",touches:0,lastContact:null,created:"2026-03-09"},
+  {id:453863186112,name:"Dan Maravilla",company:"",status:"NEW",touches:1,lastContact:"2026-03-09",created:"2026-03-09"},
+  {id:448378188526,name:"j.olsburgh@londonmetals.co.uk",company:"",status:"NEW",touches:3,lastContact:"2026-03-11",created:"2026-03-04"},
+  {id:448316416705,name:"Teresa Wheeler",company:"",status:"NEW",touches:7,lastContact:"2026-03-10",created:"2026-03-04"},
+  {id:447004196572,name:"Tristan Lory",company:"",status:"NEW",touches:2,lastContact:"2026-03-04",created:"2026-03-04"},
+  {id:447004196562,name:"Jay Barnett",company:"",status:"NEW",touches:2,lastContact:"2026-03-04",created:"2026-03-04"},
+  {id:446965282500,name:"Daniel Furrer",company:"London Metals Ltd",status:"NEW",touches:4,lastContact:"2026-03-11",created:"2026-03-03"},
+  {id:445664621289,name:"Alec Rose",company:"Corpay",status:"NEW",touches:0,lastContact:null,created:"2026-03-02"},
+  // February 2026
+  {id:441670620874,name:"Martin Malia",company:"",status:"NEW",touches:1,lastContact:"2026-02-27",created:"2026-02-27"},
+  {id:442436354799,name:"Dong",company:"",status:"NEW",touches:1,lastContact:"2026-02-27",created:"2026-02-27"},
+  {id:442603941590,name:"Maxime Dimidschstein",company:"",status:"NEW",touches:2,lastContact:"2026-02-27",created:"2026-02-27"},
+  {id:441399948013,name:"Tracy Li",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-26"},
+  {id:439488394949,name:"marshalldeutsch@gmail.com",company:"",status:"NEW",touches:3,lastContact:"2026-03-05",created:"2026-02-24"},
+  {id:438579981005,name:"Vincent Lavoie",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-23"},
+  {id:435948206821,name:"Juan Jaime Garza",company:"",status:"OPEN",touches:5,lastContact:"2026-02-27",created:"2026-02-20"},
+  {id:435340952300,name:"Sharu Vijayan",company:"fico",status:"NEW",touches:0,lastContact:null,created:"2026-02-20"},
+  {id:434666819320,name:"dhaught@sorteratech.com",company:"",status:"NEW",touches:2,lastContact:"2026-02-20",created:"2026-02-19"},
+  {id:433711678142,name:"Prateek Kankariya",company:"",status:"NEW",touches:6,lastContact:"2026-03-05",created:"2026-02-19"},
+  {id:434633478864,name:"Blake Oconnor",company:"",status:"NEW",touches:3,lastContact:"2026-02-19",created:"2026-02-19"},
+  {id:433852858049,name:"Tomas Louda",company:"Etw",status:"NEW",touches:8,lastContact:"2026-03-05",created:"2026-02-18"},
+  {id:424351754980,name:"Pablo Galvez",company:"",status:"NEW",touches:3,lastContact:"2026-02-12",created:"2026-02-11"},
+  {id:424443983560,name:"Chris Thacker",company:"",status:"NEW",touches:2,lastContact:"2026-02-12",created:"2026-02-11"},
+  {id:424304781019,name:"Megan Behm",company:"",status:"NEW",touches:2,lastContact:"2026-02-12",created:"2026-02-11"},
+  {id:424401103590,name:"Philip Elbaz",company:"",status:"NEW",touches:1,lastContact:"2026-02-12",created:"2026-02-11"},
+  {id:424330534614,name:"Jarrett Froelich",company:"",status:"NEW",touches:2,lastContact:"2026-02-12",created:"2026-02-11"},
+  {id:423407080129,name:"Malcolm Griffith",company:"",status:"NEW",touches:3,lastContact:"2026-02-23",created:"2026-02-11"},
+  {id:423099726530,name:"Dan Danai",company:"",status:"NEW",touches:8,lastContact:"2026-02-20",created:"2026-02-10"},
+  {id:422789240563,name:"jb@bookinloop.com",company:"",status:"NEW",touches:7,lastContact:"2026-02-25",created:"2026-02-10"},
+  {id:422789240562,name:"Stephanie Leroux",company:"",status:"NEW",touches:9,lastContact:"2026-03-04",created:"2026-02-10"},
+  {id:422962914020,name:"ap@sorteratech.com",company:"",status:"NEW",touches:1,lastContact:"2026-02-10",created:"2026-02-10"},
+  {id:422962914019,name:"Deborah Morykon",company:"",status:"NEW",touches:5,lastContact:"2026-02-24",created:"2026-02-10"},
+  {id:419999639289,name:"Ali Mohamed",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-09"},
+  {id:417781683928,name:"Frank Gallagher",company:"",status:"NEW",touches:8,lastContact:"2026-02-24",created:"2026-02-06"},
+  {id:415928015580,name:"Kara Evanoff",company:"",status:"NEW",touches:2,lastContact:"2026-02-18",created:"2026-02-05"},
+  {id:415165180609,name:"David Snydacker",company:"",status:"NEW",touches:3,lastContact:"2026-02-04",created:"2026-02-04"},
+  {id:407583322834,name:"Kenneth Darling",company:"",status:"NEW",touches:3,lastContact:"2026-02-03",created:"2026-02-03"},
+  {id:412676953833,name:"Eric",company:"Retired",status:"NEW",touches:0,lastContact:null,created:"2026-02-03"},
+  {id:406490613448,name:"Paul Pleasance",company:"",status:"NEW",touches:2,lastContact:"2026-02-02",created:"2026-02-02"},
+  {id:410555775721,name:"Steve Robichaud",company:"",status:"OPEN",touches:1,lastContact:"2026-02-02",created:"2026-02-02"},
+  {id:409343150825,name:"Jeremy Troutman",company:"",status:"OPEN",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:407516428011,name:"Rachel Macdonald",company:"",status:"OPEN",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:406490611445,name:"Helen Cantrell",company:"",status:"OPEN",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:406490611431,name:"Byron Laferriere",company:"",status:"OPEN",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:409343149791,name:"Luke Schwartzhoff",company:"",status:"CONNECTED",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:407583117003,name:"Neil Hickey",company:"",status:"CONNECTED",touches:1,lastContact:"2026-02-03",created:"2026-02-02"},
+  {id:407516426960,name:"David Prouix",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:410557210316,name:"Martin Beland",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-02"},
+  {id:410339935990,name:"Alicja Wydrzynska",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-02-02"},
+  // January 2026
+  {id:403792197321,name:"chris@enviroo-projectco.co.uk",company:"",status:"NEW",touches:17,lastContact:"2026-03-05",created:"2026-01-29"},
+  {id:395516926708,name:"Daniel Dietzler",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-22"},
+  {id:380832963273,name:"LAL NABIZADA",company:"Whitby Recycling",status:"NEW",touches:13,lastContact:"2026-02-10",created:"2026-01-21"},
+  {id:392829391559,name:"Nick Baumann",company:"",status:"NEW",touches:6,lastContact:"2026-03-10",created:"2026-01-21"},
+  {id:386481603316,name:"Todd Weldy",company:"",status:"NEW",touches:17,lastContact:"2026-03-11",created:"2026-01-16"},
+  {id:387132869353,name:"Jake Courtright",company:"",status:"NEW",touches:2,lastContact:"2026-01-23",created:"2026-01-16"},
+  {id:387071726274,name:"Savannah Burke",company:"gendbase.com",status:"NEW",touches:0,lastContact:null,created:"2026-01-16"},
+  {id:383703459532,name:"inquiries@looperp.ai",company:"",status:"NEW",touches:2,lastContact:"2026-01-28",created:"2026-01-14"},
+  {id:383703459531,name:"sawakow@pedalpoint.co",company:"",status:"NEW",touches:2,lastContact:"2026-01-28",created:"2026-01-14"},
+  {id:381712175835,name:"Shannon Rinko",company:"Pelton Aggregates",status:"NEW",touches:5,lastContact:"2026-01-28",created:"2026-01-13"},
+  {id:381496942329,name:"Tom Hearne",company:"",status:"NEW",touches:9,lastContact:"2026-02-05",created:"2026-01-13"},
+  {id:380519393997,name:"Joe Fink",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-12"},
+  {id:380517891779,name:"Zubair Abdulla",company:"",status:"NEW",touches:4,lastContact:"2026-02-10",created:"2026-01-12"},
+  {id:327174337264,name:"Samuel Alonso",company:"Ecoembes",status:"NEW",touches:0,lastContact:null,created:"2026-01-12"},
+  {id:376561449663,name:"Pooja Patel",company:"",status:"NEW",touches:15,lastContact:"2026-03-05",created:"2026-01-08"},
+  {id:374545357519,name:"lucca portes",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-06"},
+  {id:373817535209,name:"ishan darshana",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-06"},
+  {id:373722790620,name:"Zak Pennesi",company:"",status:"NEW",touches:14,lastContact:"2026-02-27",created:"2026-01-05"},
+  {id:373786529519,name:"Zubair Abdulla (2)",company:"",status:"NEW",touches:8,lastContact:"2026-02-10",created:"2026-01-05"},
+  {id:373537523409,name:"Ivan W",company:"Amix Group",status:"NEW",touches:5,lastContact:"2026-03-05",created:"2026-01-05"},
+  {id:371272686318,name:"DIMITRIOS TSAGRIS",company:"DELTA MOTORING",status:"NEW",touches:5,lastContact:"2026-01-09",created:"2026-01-03"},
+  {id:369733640930,name:"Hugues Pierini",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-02"},
+  {id:369733639905,name:"Jim Thomas",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-02"},
+  {id:369045074673,name:"Miles Shiver",company:"",status:"NEW",touches:0,lastContact:null,created:"2026-01-02"},
+  // December 2025
+  {id:366462885600,name:"messages.nlcorp.netsuite",company:"",status:"NEW",touches:5,lastContact:"2026-01-07",created:"2025-12-29"},
+  {id:362375498461,name:"Darrin Johnson",company:"",status:"OPEN",touches:4,lastContact:"2026-01-28",created:"2025-12-23"},
+  {id:360382582520,name:"rafalwierzbicki@fichtner.co.uk",company:"",status:"NEW",touches:11,lastContact:"2026-01-09",created:"2025-12-23"},
+  {id:360382582521,name:"Ahmed Detta",company:"",status:"NEW",touches:34,lastContact:"2026-03-05",created:"2025-12-23"},
+  {id:359346412250,name:"everyone@cebasolutions.com",company:"",status:"NEW",touches:5,lastContact:"2026-01-15",created:"2025-12-19"},
+  {id:358868934389,name:"Lewis Haughan",company:"Fichtner Consulting Engineers",status:"NEW",touches:20,lastContact:"2026-01-28",created:"2025-12-19"},
+  {id:351697443565,name:"Randy Galgas",company:"",status:"NEW",touches:7,lastContact:"2026-02-20",created:"2025-12-18"},
+  {id:358027500246,name:"Yu Noguchi",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-18"},
+  {id:354591484644,name:"Logan Weisbrod",company:"",status:"IN_PROGRESS",touches:0,lastContact:null,created:"2025-12-18"},
+  {id:357161883340,name:"MARIUXI JIMENEZ",company:"ROSA SUDAMERICA",status:"NEW",touches:0,lastContact:null,created:"2025-12-17"},
+  {id:353764264634,name:"Richard Archambault",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-15"},
+  {id:350472036047,name:"Jeff Bartlam",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-15"},
+  {id:350472035011,name:"Thinh Nguyen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-15"},
+  {id:354590344904,name:"Susan Kriegellint",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-15"},
+  {id:353057330903,name:"Kelly Wrisley",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-15"},
+  {id:351837691611,name:"Fred Seidenberg",company:"",status:"NEW",touches:2,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:351696053980,name:"Casey Beard",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:350292744943,name:"Hendryk Barycki",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:351695336165,name:"kaylon@mountain-med.com",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:350471775953,name:"Evan Schumpf",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:351740358351,name:"Kamal Desor",company:"",status:"NEW",touches:2,lastContact:"2025-12-12",created:"2025-12-12"},
+  {id:347737548517,name:"Mellisa Dugger",company:"",status:"NEW",touches:12,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548522,name:"rvalles@nauticalfl.com",company:"",status:"NEW",touches:11,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548518,name:"Theresa Heath",company:"",status:"NEW",touches:11,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548520,name:"Patrick Cunningham",company:"",status:"NEW",touches:12,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548521,name:"Alexander Suan",company:"",status:"NEW",touches:12,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548519,name:"Will Rath",company:"",status:"NEW",touches:12,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:347737548523,name:"Peter Gomer",company:"",status:"NEW",touches:11,lastContact:"2025-12-22",created:"2025-12-11"},
+  {id:348742235883,name:"Paul Kelly",company:"",status:"NEW",touches:1,lastContact:"2025-12-11",created:"2025-12-11"},
+  {id:347935711948,name:"Gary Grigoryan",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-09"},
+  {id:346809749198,name:"Robert Fulkerson",company:"",status:"NEW",touches:2,lastContact:"2026-02-12",created:"2025-12-08"},
+  {id:346823645924,name:"Ken Darling",company:"",status:"NEW",touches:7,lastContact:"2026-02-03",created:"2025-12-08"},
+  {id:346825575101,name:"Neil Berman",company:"",status:"NEW",touches:2,lastContact:"2026-01-05",created:"2025-12-08"},
+  {id:346828223206,name:"Nikhil Karnavat",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-12-08"},
+  {id:346990169802,name:"Nathan Norris",company:"",status:"NEW",touches:5,lastContact:"2026-03-04",created:"2025-12-08"},
+  {id:346828223185,name:"Brock Norris",company:"",status:"NEW",touches:2,lastContact:"2026-01-14",created:"2025-12-08"},
+  {id:346825574123,name:"Bernie Fellonneau",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346823644914,name:"Stephen Klopfenstein",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346976595692,name:"Chip Koplin",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346828223163,name:"Jonathan Blount",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346809747146,name:"Cori Warren",company:"",status:"NEW",touches:2,lastContact:"2026-02-13",created:"2025-12-08"},
+  {id:346990168782,name:"Jim Warren",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346823643858,name:"Dorothy Warren",company:"",status:"NEW",touches:1,lastContact:"2025-12-12",created:"2025-12-08"},
+  {id:346976857789,name:"Jason Young",company:"",status:"NEW",touches:1,lastContact:"2026-02-03",created:"2025-12-08"},
+  {id:343810265811,name:"Sean Miles",company:"",status:"NEW",touches:2,lastContact:"2026-02-13",created:"2025-12-05"},
+  {id:341755491056,name:"Fred Cornell",company:"",status:"NEW",touches:1,lastContact:"2026-02-06",created:"2025-12-04"},
+  {id:342639444683,name:"Al Pena",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341631716039,name:"Brett Robinson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341582187201,name:"Dave Daily",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:342641575666,name:"Sam Klos",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341754020576,name:"Whitney Holladay",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341582157516,name:"Shawn Godwin",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341755458278,name:"Kathryn Scafe",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-04"},
+  {id:341630845664,name:"Ruben Virtucio",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-03"},
+  {id:341753896679,name:"Jason Dasilva",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-03"},
+  {id:341582031579,name:"Natalia Luis",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-03"},
+  {id:341630843620,name:"Emily Ayling",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-03"},
+  {id:341630843593,name:"Pamela Kendle",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-12-03"},
+  {id:341625751265,name:"Carlos Roman",company:"",status:"NEW",touches:4,lastContact:"2026-01-16",created:"2025-12-03"},
+  {id:341579093701,name:"ron@looperp.ai",company:"",status:"NEW",touches:7,lastContact:"2026-01-15",created:"2025-12-03"},
+  {id:341579093703,name:"enrique@looperp.ai",company:"",status:"NEW",touches:7,lastContact:"2026-01-15",created:"2025-12-03"},
+  {id:341579093702,name:"winny@looperp.ai",company:"",status:"NEW",touches:7,lastContact:"2026-01-15",created:"2025-12-03"},
+  {id:341579093700,name:"Caleb Wilton",company:"",status:"NEW",touches:1996,lastContact:"2026-03-12",created:"2025-12-03"},
+  // November 2025
+  {id:336854333147,name:"Sejal Hatmode",company:"Green Global Technologies",status:"NEW",touches:4,lastContact:"2026-01-23",created:"2025-11-28"},
+  {id:335767485130,name:"Richie Stanaway",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-27"},
+  {id:334694983400,name:"Bhavesh Mundada",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-26"},
+  {id:334112722668,name:"Justine Burdo",company:"",status:"NEW",touches:5,lastContact:"2025-12-02",created:"2025-11-25"},
+  {id:332034780919,name:"Philip Lieffers",company:"",status:"NEW",touches:1,lastContact:"2025-11-24",created:"2025-11-24"},
+  {id:330029040329,name:"Bonnie Cocker",company:"",status:"NEW",touches:1,lastContact:"2025-11-24",created:"2025-11-24"},
+  {id:330149486274,name:"Emmanuel Sanchez",company:"Easy EC auto parts",status:"NEW",touches:1,lastContact:"2025-11-24",created:"2025-11-22"},
+  {id:328758274782,name:"Michelle Presley",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-21"},
+  {id:327758195407,name:"Henry Sack",company:"",status:"NEW",touches:17,lastContact:"2026-03-10",created:"2025-11-20"},
+  {id:328021621455,name:"Caleb Wilton (2)",company:"",status:"NEW",touches:5,lastContact:"2026-01-27",created:"2025-11-19"},
+  {id:327295422156,name:"Corey Bacigalupo",company:"",status:"OPEN",touches:11,lastContact:"2026-02-16",created:"2025-11-18"},
+  {id:326452798146,name:"Tammy Turner",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-18"},
+  {id:326452797167,name:"Scott Zemba",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-18"},
+  {id:326454139599,name:"Brian Piccolo",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326453417720,name:"Dave Blair",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326453417699,name:"Gail Wozniczka",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326309368510,name:"Jim Summers",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:325929659127,name:"Candi Eckert",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326299767534,name:"Betsy Pease",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326304793275,name:"Carl Gaines",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326304792291,name:"Jaco Van Der Merwe",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:326304073410,name:"Grant Neff",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:325663830759,name:"Troy Kunz",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:325140379382,name:"Thajudeen Aboobaker",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-17"},
+  {id:323829497593,name:"Jack Coulbeck",company:"J.C.S. Fish Limited",status:"NEW",touches:8,lastContact:"2026-02-10",created:"2025-11-15"},
+  {id:322784101077,name:"Lois Nix",company:"",status:"NEW",touches:1,lastContact:"2025-10-27",created:"2025-11-14"},
+  {id:322743309020,name:"Itzel Magali Malagon",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-14"},
+  {id:322744027859,name:"Daniel Wright",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-14"},
+  {id:322687634124,name:"Bailee Ruthardt",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-14"},
+  {id:322742590194,name:"Jeremy Castor",company:"",status:"NEW",touches:4,lastContact:"2025-12-09",created:"2025-11-14"},
+  {id:321609553646,name:"Scott Saunders",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321611700944,name:"Nick Badgett",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321766785726,name:"Teresa Molloy",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321612416711,name:"Nadira Peiris",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321609551598,name:"Megan Schulz",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321456307900,name:"Patrick Hallenbeck",company:"",status:"NEW",touches:1,lastContact:"2026-02-13",created:"2025-11-13"},
+  {id:321614565109,name:"Wendis Fugate",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321614565082,name:"Michael Fabio",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321611696835,name:"Don Liepa",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321611695854,name:"Wesley Fleming",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:321456303817,name:"Lisa Byars",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-13"},
+  {id:319467851467,name:"David Rouse",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-11"},
+  {id:319324006133,name:"Jesse Bounds",company:"",status:"NEW",touches:5,lastContact:"2026-02-02",created:"2025-11-11"},
+  {id:319319694036,name:"Michael Rainis",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-11"},
+  {id:318528034521,name:"Natalie Briggs",company:"Climbik.com",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:318298464996,name:"Philippe Gignac",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:318292729554,name:"Gus Pena",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:318294153974,name:"Donald Hennen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:318149653193,name:"Emily James",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:317853884143,name:"Greg Egan",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-10"},
+  {id:314515342058,name:"Sam Uphold",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-07"},
+  {id:315140188900,name:"Chris York",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-07"},
+  {id:314515341019,name:"Roger Salazar",company:"",status:"NEW",touches:1,lastContact:"2026-01-30",created:"2025-11-07"},
+  {id:315140172513,name:"Angela Walton",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-07"},
+  {id:314515321564,name:"Bobby Farris",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-07"},
+  {id:315140168434,name:"Dan Ingersoll",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-07"},
+  {id:315474334402,name:"Adam Shine",company:"",status:"NEW",touches:2,lastContact:"2025-12-11",created:"2025-11-07"},
+  {id:314514511554,name:"Elien Moriaux",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314510912225,name:"Fazleena Badurdeen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314492171964,name:"Adeel Mohammed",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314775374582,name:"Ellen Meyer",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314775360248,name:"JC Rodriguez",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314492143295,name:"Katie Remuzzi",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314569765604,name:"Molly Mackenzie",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314569765562,name:"Paul Cullen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314642303684,name:"Alex Mcintyre",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314510862049,name:"Fortunato Villamagna",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314515175118,name:"Keenen Green",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314516611777,name:"Ande Smith",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314491402965,name:"Travis Carr",company:"",status:"NEW",touches:1,lastContact:"2026-02-06",created:"2025-11-06"},
+  {id:314514456302,name:"Sean Weeks",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314491400947,name:"Jill Long",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314490681024,name:"Timothy Ashe",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:314569739993,name:"Gene Park",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313628748491,name:"Amy Wald",company:"",status:"NEW",touches:3,lastContact:"2025-11-13",created:"2025-11-06"},
+  {id:313751445195,name:"Emanuele Zilio",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313687894747,name:"Harry Saliba",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313749288685,name:"Wayne Rifer",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313751444176,name:"Shane Moodie",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313747164858,name:"Ben Baldwin",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313687893712,name:"Jeff Morrison",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313687892704,name:"Jennie Gift",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313687892675,name:"Ferdinand Hager",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313689330409,name:"John Spagnuolo",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313749285600,name:"Rich Kinsbursky",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313689329401,name:"Robert Wasicek",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-06"},
+  {id:313749200573,name:"Jessica Marvin",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313687804621,name:"Emma Cedeno",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313749198562,name:"Kenneth Laliberte",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313751352001,name:"Lex Katich",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313686355678,name:"Bob Houghton",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313687075563,name:"Jesse Glasshoff",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313686354650,name:"Denis Ikonomi",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313744923327,name:"Anjan Gandhi",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313689233107,name:"Ron Mason",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313683836629,name:"Mikee Gervais",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313689232101,name:"Matthew Davis",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313689231079,name:"Asami Nagasawa",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313748473535,name:"Jan Vrba",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313687791306,name:"Steve White",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313687790311,name:"Steve Wichlacz",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313628636877,name:"Caleb Powers",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313688508147,name:"Ikenna Nlebedim",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-05"},
+  {id:313628623554,name:"Emily Chapman",company:"",status:"NEW",touches:4,lastContact:"2025-11-13",created:"2025-11-05"},
+  {id:312665706171,name:"Kana Nishio",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312668553945,name:"Bruce Conover",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312668553916,name:"Patrick Riley",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312661360358,name:"Greg Voorhees",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312664263389,name:"Masago Kuwabara",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312659521210,name:"Gavin Wilson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312752830163,name:"Michael Varnell",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312659520191,name:"Clive Hess",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312665697999,name:"James Liow",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312665696993,name:"Eric Ferguson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312661353165,name:"Maite Quinn-Richards",company:"",status:"NEW",touches:4,lastContact:"2026-02-03",created:"2025-11-04"},
+  {id:312664256197,name:"Michelle Goff",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312664255215,name:"Kris Harper",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312064237284,name:"Josue Colon",company:"",status:"NEW",touches:3,lastContact:"2025-11-18",created:"2025-11-04"},
+  {id:310969911998,name:"eagle@bionewusa.com",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:310713107186,name:"Shimpei Takeshita",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:310697647825,name:"Brian Mccormick",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:308749999852,name:"Karl Rogers",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312064223950,name:"Tommy McGuire",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:310697644788,name:"James Ewles",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-04"},
+  {id:312062788295,name:"Grayson Rutherford",company:"",status:"NEW",touches:1,lastContact:"2026-02-25",created:"2025-11-04"},
+  {id:308749859534,name:"Howard Weisberg",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-03"},
+  {id:310697496292,name:"Andy Anthony",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-11-03"},
+  // October 2025
+  {id:306975962812,name:"Behzad Konjkav",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:306977399518,name:"Margaret Fleming",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:307271248594,name:"info@neworganics.com",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:306975960807,name:"Miguel Berumen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:307268371137,name:"Donald Powell",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:307269806793,name:"Sirs David",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:306845446902,name:"David Schroeder",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-31"},
+  {id:306216445633,name:"Andrew Montgomery",company:"",status:"NEW",touches:1,lastContact:"2026-02-02",created:"2025-10-31"},
+  {id:306785391316,name:"Ted Kennedy",company:"",status:"NEW",touches:2,lastContact:"2026-02-02",created:"2025-10-31"},
+  {id:306344205004,name:"Steve Wilson",company:"",status:"NEW",touches:2,lastContact:"2025-10-31",created:"2025-10-31"},
+  {id:304443934402,name:"Chandler James",company:"",status:"NEW",touches:2,lastContact:"2025-11-18",created:"2025-10-31"},
+  {id:306344197827,name:"Galen Crozier",company:"",status:"NEW",touches:2,lastContact:"2025-11-18",created:"2025-10-31"},
+  {id:303563781822,name:"Brian Knute",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-30"},
+  {id:305283432154,name:"Jason Johnson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-30"},
+  {id:303563779797,name:"Doug Hughes",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-30"},
+  {id:305282710244,name:"Lalit Malhotra",company:"",status:"NEW",touches:4,lastContact:"2025-11-19",created:"2025-10-30"},
+  {id:305130742492,name:"Jason Patton",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-30"},
+  {id:303557215964,name:"Michele Clarke",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-29"},
+  {id:303451769578,name:"Christopher Klapsa",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-29"},
+  {id:303461155553,name:"Aaron Wieringa",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-29"},
+  {id:302296667887,name:"Tadeu Carneiro",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:302380163816,name:"Kyle Schanzer",company:"Harney Partners",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:302296647392,name:"Matthew Joyce",company:"",status:"NEW",touches:2,lastContact:"2026-02-12",created:"2025-10-28"},
+  {id:302345512688,name:"Nicola Gagliardo",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:302296645342,name:"Ashly Domeier",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:302344790737,name:"Hugo Schumann",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:300848506570,name:"Sean Jennings",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:301779047133,name:"Atharva Joshi",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-28"},
+  {id:300536476393,name:"Tim Makens",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-27"},
+  {id:300407552734,name:"Bill Theado",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-27"},
+  {id:300848357106,name:"Tom Russell",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-27"},
+  {id:297265017530,name:"Andy Angel",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297262862033,name:"Steve Ciskowski",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297259984605,name:"Eric Ritchie",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297297449676,name:"Steve Hentges",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297259983607,name:"Lockley Gentes",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297264296638,name:"Michael Sobel",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297265014504,name:"Dru Buck",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297297447658,name:"Dean Durliat",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297262858984,name:"Shelby Anderson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297264294630,name:"Stephen Trainer",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297262141127,name:"Susan Reichenthal",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297259980510,name:"Robert Odell",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297262140095,name:"Robert Pirrello",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:297263574736,name:"Tums Manu",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-24"},
+  {id:296238409441,name:"Aran Armstrong",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:293900295929,name:"Cody Bjorklund",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:294076267199,name:"Tiffany Firebaugh",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:293898837746,name:"Janet Braen",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:293898837712,name:"Jossanne Neil",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:293902433992,name:"Carlos Humbert",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:295841703668,name:"Cherri Dubois",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-23"},
+  {id:295149257458,name:"Patrick Moran",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:295034677950,name:"Steven Kutrzyba",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:295035388611,name:"Joseph Calamaro",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293829383893,name:"Daniel Mayo",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293902325485,name:"Patrick Kelly",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293902325448,name:"Domenico Giannone",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293829375728,name:"Keith Landau",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293898724038,name:"Nathan Kruk",company:"",status:"NEW",touches:1,lastContact:"2026-02-12",created:"2025-10-22"},
+  {id:294980862691,name:"Jay Nelson",company:"",status:"NEW",touches:1,lastContact:"2026-02-13",created:"2025-10-22"},
+  {id:293902320331,name:"Cheryl Ramirez",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293829371633,name:"Jim Anderson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293902319290,name:"Christopher Dill",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:294979422911,name:"Celia Johnson",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:294980859615,name:"Massimo Toso",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293829369584,name:"Chris Hyde",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293902307048,name:"Michael Petro",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:293898706636,name:"Glenn Laga",company:"",status:"NEW",touches:5,lastContact:"2025-10-28",created:"2025-10-22"},
+  {id:293902300898,name:"Joe Murschel",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:294596307665,name:"Brian Mahavier",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:294596306660,name:"Enrique Castaneda",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-10-22"},
+  {id:294131446458,name:"SARAH DAMASKOS",company:"CSPR",status:"NEW",touches:12,lastContact:"2026-02-10",created:"2025-10-21"},
+  {id:293827050195,name:"Terry Levy",company:"",status:"NEW",touches:2,lastContact:"2025-10-21",created:"2025-10-21"},
+  {id:293828480755,name:"George Hinkle",company:"",status:"NEW",touches:1,lastContact:"2026-01-06",created:"2025-10-21"},
+  {id:289573720767,name:"Gina Roys",company:"",status:"NEW",touches:5,lastContact:"2026-01-09",created:"2025-10-21"},
+  {id:292603486933,name:"Joe Clayton",company:"",status:"NEW",touches:4,lastContact:"2025-10-27",created:"2025-10-20"},
+  {id:292599809771,name:"Scott Mccullough",company:"",status:"NEW",touches:1,lastContact:"2025-10-20",created:"2025-10-20"},
+  {id:288935426747,name:"Brad Meulemans",company:"",status:"NEW",touches:1,lastContact:"2025-10-17",created:"2025-10-17"},
+  {id:287985180404,name:"Steve Timmons",company:"",status:"NEW",touches:2,lastContact:"2025-11-18",created:"2025-10-16"},
+  {id:287991626434,name:"sales@greatrivermilling.com",company:"",status:"NEW",touches:1,lastContact:"2025-10-16",created:"2025-10-16"},
+  {id:287815752416,name:"Gerald Llorag",company:"Philippines",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-10-16"},
+  {id:287851966182,name:"Nidhi Turakhia",company:"",status:"NEW",touches:2,lastContact:"2025-11-18",created:"2025-10-16"},
+  {id:286677381855,name:"Jonathan Costa",company:"",status:"NEW",touches:3,lastContact:"2026-02-23",created:"2025-10-15"},
+  {id:286570115804,name:"Damian Murphy",company:"",status:"NEW",touches:1,lastContact:"2025-10-15",created:"2025-10-15"},
+  {id:286501329632,name:"Patrick Ryan",company:"",status:"NEW",touches:1,lastContact:"2025-10-15",created:"2025-10-15"},
+  {id:286675216118,name:"Richard Acosta",company:"",status:"NEW",touches:2,lastContact:"2025-11-18",created:"2025-10-15"},
+  {id:286338066139,name:"Robert Laughlin",company:"",status:"NEW",touches:1,lastContact:"2025-10-15",created:"2025-10-15"},
+  {id:286499165910,name:"Mathew Mendonca",company:"",status:"NEW",touches:3,lastContact:"2026-02-13",created:"2025-10-15"},
+  {id:285095624389,name:"inlandenterprise17@gmail.com",company:"",status:"NEW",touches:1,lastContact:"2025-10-15",created:"2025-10-15"},
+  {id:285097057009,name:"Bryce Dorsing",company:"",status:"NEW",touches:2,lastContact:"2025-10-17",created:"2025-10-15"},
+  {id:285096233671,name:"Josh Terpstra",company:"",status:"NEW",touches:2,lastContact:"2025-10-20",created:"2025-10-14"},
+  {id:285103181508,name:"Malika Benredjeb Yager",company:"",status:"NEW",touches:3,lastContact:"2025-10-28",created:"2025-10-14"},
+  {id:285088318166,name:"Neil Byce",company:"",status:"NEW",touches:5,lastContact:"2025-10-28",created:"2025-10-14"},
+  {id:284109326067,name:"Christopher Phelps",company:"",status:"NEW",touches:7,lastContact:"2026-01-21",created:"2025-10-13"},
+  {id:284107166421,name:"jose@mazorcadeoro.com",company:"",status:"NEW",touches:3,lastContact:"2025-11-13",created:"2025-10-13"},
+  {id:276046821063,name:"ean@lakesiron.com",company:"",status:"NEW",touches:2,lastContact:"2025-10-13",created:"2025-10-08"},
+  {id:275562386131,name:"Lance Caldwell",company:"",status:"NEW",touches:2,lastContact:"2025-10-07",created:"2025-10-07"},
+  {id:275558062838,name:"Dennis Berman",company:"",status:"NEW",touches:3,lastContact:"2025-10-16",created:"2025-10-07"},
+  {id:273906151146,name:"Rueben Tamez",company:"",status:"OPEN",touches:1,lastContact:"2025-07-30",created:"2025-10-06"},
+  {id:269744746228,name:"Justin Kidd",company:"Potomac E-Scrap",status:"NEW",touches:357,lastContact:"2026-03-11",created:"2025-10-03"},
+  {id:269193818825,name:"David Luskin",company:"",status:"NEW",touches:3,lastContact:"2025-10-02",created:"2025-10-02"},
+  {id:267328438992,name:"Adam Simmet",company:"",status:"NEW",touches:1,lastContact:"2025-10-02",created:"2025-10-01"},
+  {id:267129585377,name:"Scott Director",company:"",status:"NEW",touches:2,lastContact:"2025-10-07",created:"2025-10-01"},
+  {id:266870077157,name:"Paul Robinson",company:"",status:"NEW",touches:2,lastContact:"2025-10-17",created:"2025-10-01"},
+  {id:267129584355,name:"Andy Marinelli",company:"",status:"NEW",touches:1,lastContact:"2025-10-17",created:"2025-10-01"},
+  {id:267328434889,name:"Martin Hansberger",company:"",status:"NEW",touches:1,lastContact:"2025-10-01",created:"2025-10-01"},
+  // September 2025
+  {id:265401491135,name:"Gail Ross",company:"",status:"BAD_TIMING",touches:0,lastContact:null,created:"2025-09-30"},
+  {id:259483775674,name:"Ariel Sokol",company:"",status:"NEW",touches:2,lastContact:"2025-09-24",created:"2025-09-24"},
+  {id:250774964924,name:"Kelly Allen",company:"",status:"NEW",touches:7,lastContact:"2025-12-04",created:"2025-09-18"},
+  {id:250768516852,name:"Brent Burgess",company:"",status:"NEW",touches:7,lastContact:"2025-12-04",created:"2025-09-18"},
+  {id:249565538013,name:"Paul Yacoubian",company:"",status:"OPEN",touches:3,lastContact:"2025-09-29",created:"2025-09-17"},
+  {id:248567201515,name:"Rick Cook",company:"",status:"NEW",touches:1,lastContact:"2025-10-02",created:"2025-09-16"},
+  {id:247188057838,name:"Andy Rausch",company:"",status:"NEW",touches:5,lastContact:"2025-10-13",created:"2025-09-16"},
+  {id:247188007651,name:"Brian Rothstein",company:"",status:"NEW",touches:1,lastContact:"2025-09-16",created:"2025-09-16"},
+  {id:248475060925,name:"Gus Vallejo",company:"",status:"NEW",touches:1,lastContact:"2025-09-16",created:"2025-09-16"},
+  {id:247263290065,name:"John Hayes",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-09-15"},
+  {id:247187457758,name:"Reign Serador",company:"",status:"NEW",touches:2,lastContact:"2025-09-15",created:"2025-09-15"},
+  {id:242143228649,name:"Paul Wilson",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242036908776,name:"David Pelz",company:"",status:"NEW",touches:1,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242036908739,name:"Tom Harrison",company:"",status:"NEW",touches:1,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242036907756,name:"Shawn Lavin",company:"",status:"NEW",touches:1,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242143218402,name:"Lynn Bergstedt",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242144627448,name:"Aaron Jenson",company:"",status:"NEW",touches:6,lastContact:"2026-01-30",created:"2025-09-11"},
+  {id:242144627430,name:"Luke Palen",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242143209171,name:"Renee Toy",company:"",status:"NEW",touches:5,lastContact:"2026-02-02",created:"2025-09-11"},
+  {id:242144624337,name:"Adam Noble",company:"",status:"NEW",touches:4,lastContact:"2025-09-29",created:"2025-09-11"},
+  {id:242143206082,name:"Niall Mcneilus",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242143201992,name:"Gina Sapia",company:"",status:"NEW",touches:4,lastContact:"2026-01-09",created:"2025-09-11"},
+  {id:242143198956,name:"Shane Alsdurf",company:"",status:"NEW",touches:2,lastContact:"2026-01-06",created:"2025-09-11"},
+  {id:242143907573,name:"Corey Kvasnick",company:"",status:"NEW",touches:0,lastContact:null,created:"2025-09-11"},
+  {id:242035457771,name:"david.lacko@rsm.cz",company:"",status:"NEW",touches:6,lastContact:"2025-10-20",created:"2025-09-11"},
+  {id:242035457772,name:"philipptacek@outlook.com",company:"",status:"NEW",touches:6,lastContact:"2025-10-20",created:"2025-09-11"},
+];
+
+// ===== LEADS PAGINATION & FILTERING =====
+let currentPage = 1;
+const pageSize = 25;
+let filteredLeads = [...allLeads];
+
+function getStatusBadgeClass(status) {
+  const map = {
+    'NEW': 'badge-gray', 'OPEN': 'badge-blue', 'IN_PROGRESS': 'badge-orange',
+    'CONNECTED': 'badge-green', 'OPEN_DEAL': 'badge-purple',
+    'BAD_TIMING': 'badge-red', 'ATTEMPTED_TO_CONTACT': 'badge-orange'
+  };
+  return map[status] || 'badge-gray';
+}
+
+function getTouchProgressHTML(touches) {
+  const max = 7;
+  const filled = Math.min(touches, max);
+  const isDone = touches >= max;
+  let dots = '';
+  for (let i = 0; i < max; i++) {
+    const cls = i < filled ? (isDone ? 'touch-dot done' : 'touch-dot filled') : 'touch-dot';
+    dots += `<div class="${cls}"></div>`;
+  }
+  return `<div class="touches-bar"><div class="touches-dots">${dots}</div><span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-muted)">${touches}/7</span></div>`;
+}
+
+function filterLeads() {
+  const search = document.getElementById('leadSearch').value.toLowerCase();
+  const status = document.getElementById('leadStatusFilter').value;
+  const touch = document.getElementById('leadTouchFilter').value;
+  filteredLeads = allLeads.filter(l => {
+    const nameMatch = l.name.toLowerCase().includes(search) || l.company.toLowerCase().includes(search);
+    const statusMatch = !status || l.status === status;
+    let touchMatch = true;
+    if (touch === '0') touchMatch = l.touches === 0;
+    else if (touch === '1-3') touchMatch = l.touches >= 1 && l.touches <= 3;
+    else if (touch === '4-6') touchMatch = l.touches >= 4 && l.touches <= 6;
+    else if (touch === '7+') touchMatch = l.touches >= 7;
+    return nameMatch && statusMatch && touchMatch;
+  });
+  currentPage = 1;
+  renderLeadsTable();
+}
+
+function changePage(dir) {
+  const total = Math.ceil(filteredLeads.length / pageSize);
+  currentPage = Math.max(1, Math.min(total, currentPage + dir));
+  renderLeadsTable();
+}
+
+function renderLeadsTable() {
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  const page = filteredLeads.slice(start, end);
+  const total = Math.ceil(filteredLeads.length / pageSize);
+  const tbody = document.getElementById('leadsTableBody');
+  tbody.innerHTML = page.map((l, i) => `
+    <tr>
+      <td style="color:var(--text-muted);font-family:'DM Mono',monospace;font-size:11px">${start + i + 1}</td>
+      <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-1/${l.id}" target="_blank">${l.name}</a></td>
+      <td style="color:var(--text-secondary);font-size:12px">${l.company || '—'}</td>
+      <td><span class="badge ${getStatusBadgeClass(l.status)}">${l.status}</span></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:${l.touches===0?'var(--danger)':l.touches>=7?'var(--success)':'var(--text-primary)'}">${l.touches}</span></td>
+      <td style="font-size:12px;color:var(--text-secondary)">${l.lastContact ? l.lastContact.slice(0,10) : '<span style="color:var(--danger)">Never</span>'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${l.created.slice(0,10)}</td>
+      <td>${getTouchProgressHTML(l.touches)}</td>
+      <td><a class="deal-link" href="https://app.hubspot.com/contacts/243159630/record/0-1/${l.id}" target="_blank">Open →</a></td>
+    </tr>
+  `).join('');
+  document.getElementById('paginationInfo').textContent = `Showing ${start+1}–${Math.min(end, filteredLeads.length)} of ${filteredLeads.length} leads`;
+  document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${total}`;
+  document.getElementById('prevBtn').disabled = currentPage === 1;
+  document.getElementById('nextBtn').disabled = currentPage === total;
+}
+
+function renderLeads() {
+  filteredLeads = [...allLeads];
+  renderLeadsTable();
+}
+
+// Init SDR chart on load for thisweek
+document.addEventListener('DOMContentLoaded', () => {
+  // Nothing needed on load since tabs handle it
+});
+</script>
+</body>
+</html>

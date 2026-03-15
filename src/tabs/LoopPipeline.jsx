@@ -23,12 +23,12 @@ function CloseDate({ raw }) {
   return <span>{label}</span>
 }
 
-function DealRow({ deal }) {
+function DealRow({ deal, stageMap }) {
   const p = deal.properties || {}
   const id = deal.id
   const name = p.dealname || 'Unnamed Deal'
   const amount = parseFloat(p.amount || 0)
-  const stage = getStageLabel(p.dealstage)
+  const stage = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
   const badgeClass = getStageBadgeClass(stage)
   const prob = parseFloat(p.hs_deal_stage_probability || getStageProb(stage))
   const weighted = amount * prob
@@ -55,6 +55,8 @@ function DealRow({ deal }) {
 export default function LoopPipeline({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading Loop ERP pipeline…</div>
   if (!data) return null
+
+  const stageMap = data.stages || {}
 
   const deals = (data.deals || []).filter(d => {
     const s = d.properties?.dealstage
@@ -121,7 +123,7 @@ export default function LoopPipeline({ data, loading }) {
               </tr>
             </thead>
             <tbody>
-              {deals.map(d => <DealRow key={d.id} deal={d} />)}
+              {deals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
               {deals.length === 0 && (
                 <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open deals found</td></tr>
               )}

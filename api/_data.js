@@ -1,5 +1,14 @@
 // Pure data-fetching functions, no HTTP response handling
-import { hsPost, DEAL_PROPS, CONTACT_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
+import { hsGet, hsPost, DEAL_PROPS, CONTACT_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
+
+export async function fetchLoopStages() {
+  const data = await hsGet(`/crm/v3/pipelines/deals/${LOOP_PIPELINE}/stages`)
+  const map = {}
+  for (const stage of data.results || []) {
+    map[stage.id] = stage.label
+  }
+  return map
+}
 
 export async function fetchLoopDeals() {
   const data = await hsPost('/crm/v3/objects/deals/search', {

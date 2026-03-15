@@ -29,16 +29,7 @@ export async function fetchCebaDeals() {
     properties: DEAL_PROPS,
     limit: 100,
   })
-  const closedData = await hsPost('/crm/v3/objects/deals/search', {
-    filterGroups: [
-      { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedwon' }] },
-      { filters: [{ propertyName: 'pipeline', operator: 'EQ', value: CEBA_PIPELINE }, { propertyName: 'dealstage', operator: 'EQ', value: 'closedlost' }] },
-    ],
-    properties: DEAL_PROPS,
-    sorts: [{ propertyName: 'closedate', direction: 'DESCENDING' }],
-    limit: 50,
-  })
-  return { open: openData.results || [], closed: closedData.results || [] }
+  return { open: openData.results || [] }
 }
 
 export async function fetchLeads() {

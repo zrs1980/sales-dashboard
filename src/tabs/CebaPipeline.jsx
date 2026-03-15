@@ -47,26 +47,6 @@ function DealRow({ deal }) {
   )
 }
 
-function ClosedRow({ deal }) {
-  const p = deal.properties || {}
-  const id = deal.id
-  const isWon = p.dealstage === 'closedwon'
-  const hsUrl = `https://app-na2.hubspot.com/contacts/243159630/record/0-3/${id}`
-  return (
-    <tr>
-      <td>{p.dealname || '—'}</td>
-      <td>
-        <span className={`badge ${isWon ? 'badge-green' : 'badge-red'}`}>
-          {isWon ? 'Closed Won' : 'Closed Lost'}
-        </span>
-      </td>
-      <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(p.amount)}</td>
-      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtDate(p.closedate)}</td>
-      <td><a className="deal-link" href={hsUrl} target="_blank" rel="noreferrer">View →</a></td>
-    </tr>
-  )
-}
-
 export default function CebaPipeline({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading CEBA pipeline…</div>
   if (!data) return null
@@ -75,7 +55,6 @@ export default function CebaPipeline({ data, loading }) {
     const s = d.properties?.dealstage
     return s !== 'closedwon' && s !== 'closedlost'
   })
-  const closed = (data.closed || []).filter(d => d.properties?.dealstage === 'closedlost')
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const alerts = generateAlerts(open)
 
@@ -118,27 +97,6 @@ export default function CebaPipeline({ data, loading }) {
               {open.map(d => <DealRow key={d.id} deal={d} />)}
               {open.length === 0 && (
                 <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open CEBA deals</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <div className="panel-title">CEBA Closed Deals — Historical</div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Deal Name</th><th>Status</th><th>Amount</th><th>Close Date</th><th>Link</th>
-              </tr>
-            </thead>
-            <tbody>
-              {closed.map(d => <ClosedRow key={d.id} deal={d} />)}
-              {closed.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No closed deals found</td></tr>
               )}
             </tbody>
           </table>

@@ -48,7 +48,7 @@ export const CALEB_OWNER_ID = '161027134'
 export const LOOP_PIPELINE = 'default'
 export const CEBA_PIPELINE = '1677684439'
 
-export const LOOP_CLOSED_STAGES = ['2681276110', '2681276111']
+export const LOOP_CLOSED_STAGES = ['2681276110', '2681276111', 'closedwon', 'closedlost']
 
 export function dealUrl(id) {
   return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${id}`

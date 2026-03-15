@@ -5,6 +5,7 @@ import {
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
 import AiReview from '../components/AiReview.jsx'
+import DealAnalytics from '../components/DealAnalytics.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -76,6 +77,8 @@ export default function CebaPipeline({ data, loading }) {
           <div className="kpi-sub">{open.length} active deals</div>
         </div>
       </div>
+
+      <DealAnalytics deals={open} stageMap={stageMap} />
 
       {alerts.length > 0 && (
         <div className="priority-alert">

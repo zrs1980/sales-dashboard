@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   fmtCurrency, fmtDate, daysSince, daysUntil,
   getStageLabel, getStageBadgeClass, getStageProb,
@@ -68,6 +69,16 @@ export default function CebaPipeline({ data, loading }) {
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
   const alerts = generateAlerts(open)
 
+  const [selectedStage, setSelectedStage] = useState(null)
+
+  const visibleDeals = selectedStage
+    ? open.filter(d => {
+        const p = d.properties || {}
+        const label = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
+        return label === selectedStage
+      })
+    : open
+
   return (
     <>
       <div className="kpi-row">
@@ -78,7 +89,7 @@ export default function CebaPipeline({ data, loading }) {
         </div>
       </div>
 
-      <DealAnalytics deals={open} stageMap={stageMap} />
+      <DealAnalytics deals={open} stageMap={stageMap} selectedStage={selectedStage} onStageClick={setSelectedStage} />
 
       {alerts.length > 0 && (
         <div className="priority-alert">
@@ -92,8 +103,16 @@ export default function CebaPipeline({ data, loading }) {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <div className="panel-title">Open CEBA Deals</div>
-            <div className="panel-sub">Click deal name to open in HubSpot</div>
+            <div className="panel-title">
+              Open CEBA Deals
+              {selectedStage && <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 400, color: 'var(--text-secondary)' }}>· {selectedStage}</span>}
+            </div>
+            <div className="panel-sub">
+              {selectedStage
+                ? <>{visibleDeals.length} deal{visibleDeals.length !== 1 ? 's' : ''} · <button onClick={() => setSelectedStage(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: 12 }}>Show all ×</button></>
+                : 'Click deal name to open in HubSpot'
+              }
+            </div>
           </div>
         </div>
         <div className="table-wrap">
@@ -106,8 +125,8 @@ export default function CebaPipeline({ data, loading }) {
               </tr>
             </thead>
             <tbody>
-              {open.map(d => <DealRow key={d.id} deal={d} />)}
-              {open.length === 0 && (
+              {visibleDeals.map(d => <DealRow key={d.id} deal={d} />)}
+              {visibleDeals.length === 0 && (
                 <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No open CEBA deals</td></tr>
               )}
             </tbody>

@@ -11,15 +11,28 @@ const STAGE_COLORS = {
   'Contract Sent':   'var(--purple)',
 }
 
-function StageBar({ label, count, value, maxCount }) {
+function StageBar({ label, count, value, maxCount, selected, dimmed, onClick }) {
   const pct = maxCount > 0 ? Math.max((count / maxCount) * 100, 4) : 4
   const color = STAGE_COLORS[label] || 'var(--accent)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9,
+        cursor: 'pointer',
+        opacity: dimmed ? 0.3 : 1,
+        transition: 'opacity 0.15s',
+      }}
+    >
       <div style={{ width: 120, fontSize: 11, color: 'var(--text-secondary)', flexShrink: 0, textAlign: 'right', lineHeight: 1.3 }}>
         {label}
       </div>
-      <div style={{ flex: 1, background: 'var(--light-gray)', borderRadius: 4, height: 22, overflow: 'hidden' }}>
+      <div style={{
+        flex: 1, background: 'var(--light-gray)', borderRadius: 4, height: 22, overflow: 'hidden',
+        outline: selected ? `2px solid ${color}` : '2px solid transparent',
+        outlineOffset: 1,
+        transition: 'outline 0.1s',
+      }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: 'white', fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap' }}>
             {count} {count === 1 ? 'deal' : 'deals'}
@@ -68,7 +81,7 @@ function MonthChart({ months }) {
   )
 }
 
-export default function DealAnalytics({ deals, stageMap }) {
+export default function DealAnalytics({ deals, stageMap, selectedStage, onStageClick }) {
   const { byStage, byMonth } = useMemo(() => {
     // --- By stage ---
     const stageGroups = {}
@@ -128,12 +141,26 @@ export default function DealAnalytics({ deals, stageMap }) {
         <div className="panel-header">
           <div>
             <div className="panel-title">Deals by Stage</div>
-            <div className="panel-sub">{deals.length} open deal{deals.length !== 1 ? 's' : ''} · count and pipeline value</div>
+            <div className="panel-sub">
+              {selectedStage
+                ? <>Filtered: <strong>{selectedStage}</strong> · <button onClick={() => onStageClick(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, fontSize: 12 }}>Clear ×</button></>
+                : `${deals.length} open deal${deals.length !== 1 ? 's' : ''} · click a stage to filter`
+              }
+            </div>
           </div>
         </div>
         <div style={{ padding: '16px 20px' }}>
           {byStage.map(s => (
-            <StageBar key={s.label} label={s.label} count={s.count} value={s.value} maxCount={maxCount} />
+            <StageBar
+              key={s.label}
+              label={s.label}
+              count={s.count}
+              value={s.value}
+              maxCount={maxCount}
+              selected={selectedStage === s.label}
+              dimmed={selectedStage !== null && selectedStage !== s.label}
+              onClick={() => onStageClick(selectedStage === s.label ? null : s.label)}
+            />
           ))}
         </div>
       </div>

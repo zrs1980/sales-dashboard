@@ -2,11 +2,12 @@ import { useState } from 'react'
 import {
   fmtCurrency, fmtDate, daysSince, daysUntil,
   getStageLabel, getStageBadgeClass, getStageProb,
-  generateAlerts, extractNotionPageId
+  extractNotionPageId
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
 import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
+import PipelineInsights from '../components/PipelineInsights.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -67,8 +68,6 @@ export default function CebaPipeline({ data, loading }) {
 
   const open = (data.open || []).filter(d => !closedStageIds.has(d.properties?.dealstage))
   const openVal = open.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
-  const alerts = generateAlerts(open)
-
   const [selectedStage, setSelectedStage] = useState(null)
 
   const visibleDeals = selectedStage
@@ -91,14 +90,7 @@ export default function CebaPipeline({ data, loading }) {
 
       <DealAnalytics deals={open} stageMap={stageMap} selectedStage={selectedStage} onStageClick={setSelectedStage} />
 
-      {alerts.length > 0 && (
-        <div className="priority-alert">
-          <h3>⚡ Priority Alerts ({alerts.length})</h3>
-          {alerts.map((a, i) => (
-            <div key={i} className="priority-item">{a.text}</div>
-          ))}
-        </div>
-      )}
+      <PipelineInsights deals={open} stageMap={stageMap} pipeline="ceba" />
 
       <div className="panel">
         <div className="panel-header">

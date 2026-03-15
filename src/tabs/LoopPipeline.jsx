@@ -2,11 +2,12 @@ import { useState } from 'react'
 import {
   fmtCurrency, fmtDate, daysSince, daysUntil,
   getStageLabel, getStageBadgeClass, getStageProb,
-  generateAlerts, extractNotionPageId
+  extractNotionPageId
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
 import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
+import PipelineInsights from '../components/PipelineInsights.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -81,7 +82,6 @@ export default function LoopPipeline({ data, loading }) {
     return s + amt * prob
   }, 0)
   const avg = deals.length ? total / deals.length : 0
-  const alerts = generateAlerts(deals)
 
   const [selectedStage, setSelectedStage] = useState(null)
 
@@ -115,14 +115,7 @@ export default function LoopPipeline({ data, loading }) {
 
       <DealAnalytics deals={deals} stageMap={stageMap} selectedStage={selectedStage} onStageClick={setSelectedStage} />
 
-      {alerts.length > 0 && (
-        <div className="priority-alert">
-          <h3>⚡ Priority Alerts ({alerts.length})</h3>
-          {alerts.map((a, i) => (
-            <div key={i} className="priority-item">{a.text}</div>
-          ))}
-        </div>
-      )}
+      <PipelineInsights deals={deals} stageMap={stageMap} pipeline="loop" />
 
       <div className="panel">
         <div className="panel-header">

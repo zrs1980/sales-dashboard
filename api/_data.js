@@ -184,16 +184,13 @@ export async function fetchSdrMeetings() {
   let data
   try {
     data = await hsPost('/crm/v3/objects/meetings/search', {
-      filterGroups: [
-        { filters: [
+      filterGroups: [{
+        filters: [
           { propertyName: 'hubspot_owner_id', operator: 'EQ', value: CALEB_OWNER_ID },
+          { propertyName: 'hs_meeting_type', operator: 'EQ', value: 'SDR To Sales Appointment' },
           { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
-        ]},
-        { filters: [
-          { propertyName: 'hubspot_owner_id', operator: 'EQ', value: RYAN_OWNER_ID },
-          { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
-        ]},
-      ],
+        ]
+      }],
       properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type', 'hs_meeting_body'],
       sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
       limit: 100,

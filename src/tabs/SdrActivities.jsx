@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 
 // --- Constants ---
-const CALL_TARGETS   = { day: 75, week: 375, month: 1500 }
+const CALL_TARGET_PER_DAY    = 75
+const MEETING_TARGET_PER_DAY = 1
+const CALL_TARGETS    = { day: 75, week: 375, month: 1500 }
 const MEETING_TARGETS = { day: 1,  week: 5,  month: 20 }
 
 const OUTCOME_LABELS = {
@@ -23,6 +25,8 @@ const MEETING_OUTCOME_COLORS = {
   CANCELLED: 'var(--warning)', RESCHEDULED: 'var(--accent)', SCHEDULED: 'var(--text-muted)',
 }
 
+const HS_BASE = 'https://app-na2.hubspot.com/contacts/243159630/record'
+
 // --- Helpers ---
 function parseTs(raw) {
   if (!raw) return null
@@ -33,19 +37,70 @@ function parseTs(raw) {
 
 function getWindowStart(period) {
   const now = new Date()
-  if (period === 'day') return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (period === 'day')       return new Date(now.getFullYear(), now.getMonth(), now.getDate())
   if (period === 'week') {
     const d = new Date(now)
     d.setDate(now.getDate() - ((now.getDay() + 6) % 7))
     d.setHours(0, 0, 0, 0)
     return d
   }
-  return new Date(now.getFullYear(), now.getMonth(), 1)
+  if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  if (period === 'ytd')       return new Date(now.getFullYear(), 0, 1)
+  return new Date(now.getFullYear(), now.getMonth(), 1) // month
+}
+
+function getWindowEnd(period) {
+  const now = new Date()
+  if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth(), 1)
+  return null
 }
 
 function filterByPeriod(items, period, field = 'hs_timestamp') {
   const start = getWindowStart(period)
-  return items.filter(item => { const d = parseTs(item.properties?.[field]); return d && d >= start })
+  const end   = getWindowEnd(period)
+  return items.filter(item => {
+    const d = parseTs(item.properties?.[field])
+    return d && d >= start && (!end || d < end)
+  })
+}
+
+function countWorkdays(start, end) {
+  let count = 0
+  const d = new Date(start)
+  while (d < end) {
+    const day = d.getDay()
+    if (day !== 0 && day !== 6) count++
+    d.setDate(d.getDate() + 1)
+  }
+  return count
+}
+
+function getDynamicTargets(period) {
+  if (CALL_TARGETS[period]) return { calls: CALL_TARGETS[period], meetings: MEETING_TARGETS[period] }
+  const now = new Date()
+  if (period === 'lastmonth') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end   = new Date(now.getFullYear(), now.getMonth(), 1)
+    const wd = countWorkdays(start, end)
+    return { calls: wd * CALL_TARGET_PER_DAY, meetings: wd * MEETING_TARGET_PER_DAY }
+  }
+  if (period === 'ytd') {
+    const start = new Date(now.getFullYear(), 0, 1)
+    const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const wd = countWorkdays(start, end)
+    return { calls: wd * CALL_TARGET_PER_DAY, meetings: wd * MEETING_TARGET_PER_DAY }
+  }
+  return { calls: 0, meetings: 0 }
+}
+
+function getPeriodLabel(period) {
+  const now = new Date()
+  if (period === 'day')       return 'Today'
+  if (period === 'week')      return 'This Week'
+  if (period === 'month')     return 'This Month'
+  if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' })
+  if (period === 'ytd')       return `YTD ${now.getFullYear()}`
+  return period
 }
 
 function fmtDuration(ms) {
@@ -55,15 +110,16 @@ function fmtDuration(ms) {
   return `${Math.floor(secs / 60)}m ${secs % 60}s`
 }
 
-function fmtCallTime(ts) {
+function fmtMeetingTime(ts) {
   const d = parseTs(ts)
   if (!d) return '—'
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 function buildTrendData(calls, period) {
-  const now = new Date()
+  const now   = new Date()
   const start = getWindowStart(period)
+  const end   = getWindowEnd(period)
 
   if (period === 'day') {
     const hours = Array.from({ length: 24 }, (_, h) => ({
@@ -92,7 +148,38 @@ function buildTrendData(calls, period) {
     return days.map(d => ({ label: d, ...map[d] }))
   }
 
-  // month
+  if (period === 'lastmonth') {
+    const yr = start.getFullYear()
+    const mo = start.getMonth()
+    const daysInMonth = new Date(yr, mo + 1, 0).getDate()
+    const map = Object.fromEntries(Array.from({ length: daysInMonth }, (_, i) => [i + 1, { total: 0, connected: 0 }]))
+    for (const call of calls) {
+      const d = parseTs(call.properties?.hs_timestamp)
+      if (!d || d < start || (end && d >= end)) continue
+      map[d.getDate()].total++
+      if (call.properties?.hs_call_status === 'CONNECTED') map[d.getDate()].connected++
+    }
+    return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), ...map[i + 1] }))
+  }
+
+  if (period === 'ytd') {
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const currentMonth = now.getMonth()
+    const yr = now.getFullYear()
+    const map = Object.fromEntries(MONTHS.slice(0, currentMonth + 1).map(m => [m, { total: 0, connected: 0 }]))
+    for (const call of calls) {
+      const d = parseTs(call.properties?.hs_timestamp)
+      if (!d || d < start || d.getFullYear() !== yr) continue
+      const key = MONTHS[d.getMonth()]
+      if (map[key]) {
+        map[key].total++
+        if (call.properties?.hs_call_status === 'CONNECTED') map[key].connected++
+      }
+    }
+    return MONTHS.slice(0, currentMonth + 1).map(m => ({ label: m, ...map[m] }))
+  }
+
+  // month (current)
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const map = Object.fromEntries(Array.from({ length: daysInMonth }, (_, i) => [i + 1, { total: 0, connected: 0 }]))
   for (const call of calls) {
@@ -104,19 +191,30 @@ function buildTrendData(calls, period) {
   return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), ...map[i + 1] }))
 }
 
+function trendSubLabel(period) {
+  const now = new Date()
+  if (period === 'day')       return 'By hour · today'
+  if (period === 'week')      return 'By day · this week'
+  if (period === 'month')     return 'By day · this month'
+  if (period === 'lastmonth') return `By day · ${new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' })}`
+  if (period === 'ytd')       return `By month · ${now.getFullYear()}`
+  return ''
+}
+
 // --- Sub-components ---
 
 function PeriodToggle({ period, onChange }) {
   return (
     <div style={{ display: 'flex', gap: 3, background: 'var(--light-gray)', borderRadius: 8, padding: 3 }}>
-      {[['day', 'Today'], ['week', 'This Week'], ['month', 'This Month']].map(([key, label]) => (
+      {[['day','Today'],['week','This Week'],['month','This Month'],['lastmonth','Last Month'],['ytd','YTD']].map(([key, label]) => (
         <button key={key} onClick={() => onChange(key)} style={{
-          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-          fontSize: 13, fontWeight: period === key ? 600 : 400,
+          padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+          fontSize: 12, fontWeight: period === key ? 600 : 400,
           background: period === key ? 'var(--white)' : 'transparent',
           color: period === key ? 'var(--text-primary)' : 'var(--text-secondary)',
           boxShadow: period === key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
           transition: 'all 0.15s',
+          whiteSpace: 'nowrap',
         }}>{label}</button>
       ))}
     </div>
@@ -131,7 +229,7 @@ function ProgressKpiCard({ color, label, value, target, sub }) {
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">
         {value.toLocaleString()}
-        <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.7 }}> / {target}</span>
+        <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.7 }}> / {target.toLocaleString()}</span>
       </div>
       <div style={{ margin: '8px 0 4px', background: 'rgba(0,0,0,0.12)', borderRadius: 4, height: 5, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: over ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)', borderRadius: 4, transition: 'width 0.4s' }} />
@@ -143,15 +241,15 @@ function ProgressKpiCard({ color, label, value, target, sub }) {
 
 function TrendChart({ data, period }) {
   const maxTotal = Math.max(...data.map(d => d.total), 1)
-  const BAR_H = 110
-  const compact = period === 'month'
+  const BAR_H  = 110
+  const compact = period === 'month' || period === 'lastmonth'
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: compact ? 2 : 6, height: BAR_H + 36 }}>
         {data.map((item, i) => {
           const totalH = Math.max((item.total / maxTotal) * BAR_H, item.total > 0 ? 3 : 0)
-          const connH = item.connected > 0 ? Math.max((item.connected / maxTotal) * BAR_H, 3) : 0
+          const connH  = item.connected > 0 ? Math.max((item.connected / maxTotal) * BAR_H, 3) : 0
           const showLabel = !compact || i % 5 === 0 || i === data.length - 1
           return (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -244,7 +342,7 @@ function SdrInsights({ calls, meetings, period }) {
       <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div className="panel-title">✦ Coaching Insights</div>
-          <div className="panel-sub">{state === 'loading' ? 'Claude is analyzing Caleb\'s activity…' : 'AI coaching analysis for Ryan'}</div>
+          <div className="panel-sub">{state === 'loading' ? "Claude is analyzing Caleb's activity…" : 'AI coaching analysis for Ryan'}</div>
         </div>
         {state === 'loaded' && (
           <button onClick={() => { loadedRef.current = true; load() }} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', color: 'var(--text-secondary)', flexShrink: 0 }}>
@@ -261,19 +359,80 @@ function SdrInsights({ calls, meetings, period }) {
   )
 }
 
+function MeetingRow({ m, expanded, onToggle }) {
+  const p = m.properties || {}
+  const outcome = p.hs_meeting_outcome
+  const label   = MEETING_OUTCOME_LABELS[outcome] || outcome || 'Scheduled'
+  const color   = MEETING_OUTCOME_COLORS[outcome] || 'var(--text-muted)'
+  const url     = p.contact_id ? `${HS_BASE}/0-1/${p.contact_id}` : null
+
+  const startD    = parseTs(p.hs_timestamp)
+  const endD      = parseTs(p.hs_meeting_end_time)
+  const durationMs = startD && endD ? endD - startD : 0
+
+  return (
+    <>
+      <tr onClick={onToggle} style={{ cursor: 'pointer', background: expanded ? 'var(--off-white)' : undefined }}>
+        <td>
+          {url
+            ? <a className="deal-link" href={url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{p.contact_name || 'Unknown'}</a>
+            : <span style={{ color: 'var(--text-muted)' }}>{p.contact_name || 'Unknown'}</span>}
+        </td>
+        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.hs_meeting_title || '—'}</td>
+        <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtMeetingTime(p.hs_timestamp)}</td>
+        <td><span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}20`, color }}>{label}</span></td>
+        <td style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', width: 28 }}>{expanded ? '▲' : '▼'}</td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={5} style={{ padding: '14px 20px 16px', background: 'var(--off-white)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px 24px' }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 4 }}>MEETING TYPE</div>
+                <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{p.hs_meeting_type || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 4 }}>DURATION</div>
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: "'DM Mono', monospace" }}>{durationMs > 0 ? fmtDuration(durationMs) : '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 4 }}>CONTACT</div>
+                <div style={{ fontSize: 13 }}>
+                  {url
+                    ? <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Open in HubSpot →</a>
+                    : <span style={{ color: 'var(--text-muted)' }}>No contact linked</span>}
+                </div>
+              </div>
+              {p.hs_meeting_body && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 6 }}>NOTES</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap', maxHeight: 120, overflowY: 'auto', padding: '8px 12px', background: 'var(--white)', borderRadius: 6, border: '1px solid var(--border)' }}>{p.hs_meeting_body}</div>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 // --- Main ---
 export default function SdrActivities({ data, loading }) {
   if (loading && !data) return <div className="state-box">Loading SDR data…</div>
   if (!data) return null
 
-  const [period, setPeriod] = useState('week')
+  const [period, setPeriod]               = useState('week')
+  const [expandedMeeting, setExpanded]    = useState(null)
 
   const calls    = data.calls    || []
   const meetings = data.meetings || []
 
-  const periodCalls    = useMemo(() => filterByPeriod(calls, period),    [calls, period])
+  const periodCalls    = useMemo(() => filterByPeriod(calls,    period), [calls,    period])
   const periodMeetings = useMemo(() => filterByPeriod(meetings, period), [meetings, period])
-  const trendData      = useMemo(() => buildTrendData(calls, period),    [calls, period])
+  const trendData      = useMemo(() => buildTrendData(calls,    period), [calls,    period])
+
+  const targets = useMemo(() => getDynamicTargets(period), [period])
 
   const outcomes = useMemo(() => {
     const map = {}
@@ -281,8 +440,8 @@ export default function SdrActivities({ data, loading }) {
     return map
   }, [periodCalls])
 
-  const connected    = outcomes.CONNECTED || 0
-  const connectRate  = periodCalls.length > 0 ? Math.round((connected / periodCalls.length) * 100) : 0
+  const connected   = outcomes.CONNECTED || 0
+  const connectRate = periodCalls.length > 0 ? Math.round((connected / periodCalls.length) * 100) : 0
 
   const avgDurationMs = useMemo(() => {
     const connCalls = periodCalls.filter(c => c.properties?.hs_call_status === 'CONNECTED' && c.properties?.hs_call_duration)
@@ -296,32 +455,32 @@ export default function SdrActivities({ data, loading }) {
     return map
   }, [meetings])
 
-  const periodLabel = { day: 'Today', week: 'This Week', month: 'This Month' }[period]
-  const callTarget    = CALL_TARGETS[period]
-  const meetingTarget = MEETING_TARGETS[period]
+  const periodLabel = getPeriodLabel(period)
 
-  const HS_BASE = 'https://app-na2.hubspot.com/contacts/243159630/record'
+  function toggleRow(id) { setExpanded(prev => prev === id ? null : id) }
 
   return (
     <>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Caleb Wilton — SDR Activity</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{calls.length} calls loaded · last 30 days · {meetings.length} SDR appointments (90 days)</div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Caleb Wilton — SDR Activity</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{calls.length} calls loaded · last 90 days · {meetings.length} SDR appointments (90 days)</div>
+          </div>
         </div>
-        <PeriodToggle period={period} onChange={setPeriod} />
+        <PeriodToggle period={period} onChange={p => { setPeriod(p); setExpanded(null) }} />
       </div>
 
       {/* KPI Cards */}
       <div className="kpi-row">
-        <ProgressKpiCard color="blue"   label={`Calls — ${periodLabel}`}     value={periodCalls.length}    target={callTarget}    sub={`${callTarget} call target`} />
+        <ProgressKpiCard color="blue"   label={`Calls — ${periodLabel}`}    value={periodCalls.length}    target={targets.calls}    sub={`${targets.calls.toLocaleString()} call target`} />
         <div className="kpi-card green">
           <div className="kpi-label">Connect Rate</div>
           <div className="kpi-value">{connectRate}%</div>
           <div className="kpi-sub">{connected} connected · {periodCalls.length} dials</div>
         </div>
-        <ProgressKpiCard color="purple" label={`Meetings — ${periodLabel}`}   value={periodMeetings.length} target={meetingTarget} sub={`${meetingTarget} appt target`} />
+        <ProgressKpiCard color="purple" label={`Meetings — ${periodLabel}`}  value={periodMeetings.length} target={targets.meetings} sub={`${targets.meetings.toLocaleString()} appt target`} />
         <div className="kpi-card orange">
           <div className="kpi-label">Avg Talk Time</div>
           <div className="kpi-value">{fmtDuration(avgDurationMs)}</div>
@@ -334,9 +493,7 @@ export default function SdrActivities({ data, loading }) {
         <div className="panel-header">
           <div>
             <div className="panel-title">Call Activity Trend</div>
-            <div className="panel-sub">
-              {period === 'day' ? 'By hour · today' : period === 'week' ? 'By day · this week' : 'By day · this month'}
-            </div>
+            <div className="panel-sub">{trendSubLabel(period)}</div>
           </div>
         </div>
         <div style={{ padding: '16px 20px' }}>
@@ -390,88 +547,28 @@ export default function SdrActivities({ data, loading }) {
           <div className="panel-header">
             <div>
               <div className="panel-title">SDR → Sales Appointments</div>
-              <div className="panel-sub">{meetings.length} appointments · last 90 days</div>
+              <div className="panel-sub">{meetings.length} appointments · last 90 days · click row to expand details</div>
             </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Contact</th><th>Meeting</th><th>Scheduled</th><th>Outcome</th></tr>
+                <tr><th>Contact</th><th>Meeting</th><th>Scheduled</th><th>Outcome</th><th style={{ width: 28 }}></th></tr>
               </thead>
               <tbody>
-                {meetings.map(m => {
-                  const p = m.properties || {}
-                  const outcome = p.hs_meeting_outcome
-                  const label = MEETING_OUTCOME_LABELS[outcome] || outcome || 'Scheduled'
-                  const color = MEETING_OUTCOME_COLORS[outcome] || 'var(--text-muted)'
-                  const url = p.contact_id ? `${HS_BASE}/0-1/${p.contact_id}` : null
-                  return (
-                    <tr key={m.id}>
-                      <td>{url ? <a className="deal-link" href={url} target="_blank" rel="noreferrer">{p.contact_name || 'Unknown'}</a> : <span style={{ color: 'var(--text-muted)' }}>{p.contact_name || 'Unknown'}</span>}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.hs_meeting_title || '—'}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtCallTime(p.hs_timestamp)}</td>
-                      <td><span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}20`, color }}>{label}</span></td>
-                    </tr>
-                  )
-                })}
+                {meetings.map(m => (
+                  <MeetingRow
+                    key={m.id}
+                    m={m}
+                    expanded={expandedMeeting === m.id}
+                    onToggle={() => toggleRow(m.id)}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
-
-      {/* Activity feed */}
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <div className="panel-title">Call Activity Feed</div>
-            <div className="panel-sub">{periodLabel} · {periodCalls.length} calls · showing most recent 50</div>
-          </div>
-        </div>
-        {periodCalls.length === 0
-          ? <div style={{ padding: '24px 20px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>No calls in this period</div>
-          : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Contact</th><th>Outcome</th><th>Duration</th><th>Notes</th><th>Time</th></tr>
-                </thead>
-                <tbody>
-                  {periodCalls.slice(0, 50).map(c => {
-                    const p = c.properties || {}
-                    const status = p.hs_call_status || 'UNKNOWN'
-                    const statusColor = OUTCOME_COLORS[status] || 'var(--text-muted)'
-                    const url = p.contact_id ? `${HS_BASE}/0-1/${p.contact_id}` : null
-                    return (
-                      <tr key={c.id}>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          {url
-                            ? <a className="deal-link" href={url} target="_blank" rel="noreferrer">{p.contact_name || 'Unknown'}</a>
-                            : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.contact_name || '—'}</span>
-                          }
-                        </td>
-                        <td>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${statusColor}20`, color: statusColor, whiteSpace: 'nowrap' }}>
-                            {OUTCOME_LABELS[status] || status}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: 12, fontFamily: "'DM Mono', monospace", color: 'var(--text-secondary)' }}>{fmtDuration(p.hs_call_duration)}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260 }}>
-                          {p.hs_call_body
-                            ? <span title={p.hs_call_body}>{p.hs_call_body.slice(0, 80)}{p.hs_call_body.length > 80 ? '…' : ''}</span>
-                            : <span style={{ color: 'var(--text-muted)' }}>—</span>
-                          }
-                        </td>
-                        <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtCallTime(p.hs_timestamp)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )
-        }
-      </div>
     </>
   )
 }

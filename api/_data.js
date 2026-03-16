@@ -150,7 +150,7 @@ async function batchContactNames(objectType, objectIds) {
 }
 
 export async function fetchSdr() {
-  const since = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const since = Date.now() - 90 * 24 * 60 * 60 * 1000
   const calls = []
   let after = undefined
   while (true) {
@@ -190,7 +190,7 @@ export async function fetchSdrMeetings() {
           { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
         ]
       }],
-      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type'],
+      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type', 'hs_meeting_body'],
       sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
       limit: 100,
     })

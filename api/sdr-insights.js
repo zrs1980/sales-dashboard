@@ -48,13 +48,13 @@ export default async function handler(req, res) {
   for (const call of periodCalls) {
     const s = call.properties?.hs_call_status || 'UNKNOWN'
     outcomes[s] = (outcomes[s] || 0) + 1
-    if (s === 'CONNECTED' && call.properties?.hs_call_duration) {
+    if ((s === 'CONNECTED' || s === 'COMPLETED') && call.properties?.hs_call_duration) {
       totalDuration += parseInt(call.properties.hs_call_duration)
       connectedWithDuration++
     }
   }
 
-  const connected = outcomes.CONNECTED || 0
+  const connected = (outcomes.CONNECTED || 0) + (outcomes.COMPLETED || 0)
   const connectRate = periodCalls.length > 0 ? Math.round((connected / periodCalls.length) * 100) : 0
   const avgDuration = connectedWithDuration > 0 ? fmtDuration(totalDuration / connectedWithDuration) : 'N/A'
 

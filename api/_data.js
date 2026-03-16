@@ -161,7 +161,7 @@ export async function fetchSdr() {
           { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
         ]
       }],
-      properties: ['hs_call_status', 'hs_timestamp', 'hs_call_direction', 'hs_call_duration', 'hs_call_body'],
+      properties: ['hs_call_status', 'hs_call_disposition', 'hs_timestamp', 'hs_call_direction', 'hs_call_duration', 'hs_call_body'],
       sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
       limit: 100,
       ...(after ? { after } : {}),
@@ -196,10 +196,7 @@ export async function fetchSdrMeetings() {
     })
   } catch { return [] }
 
-  const meetings = (data.results || []).filter(m => {
-    const t = (m.properties?.hs_meeting_type || '').toLowerCase()
-    return t.includes('sdr') || t.includes('sales appointment') || t.includes('appointment')
-  })
+  const meetings = data.results || []
 
   const contactMap = await batchContactNames('meetings', meetings.map(m => m.id))
   for (const m of meetings) {

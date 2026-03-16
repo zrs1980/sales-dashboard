@@ -7,14 +7,20 @@ const CALL_TARGETS    = { day: 75, week: 375, month: 1500 }
 const MEETING_TARGETS = { day: 1,  week: 5,  month: 20 }
 
 const OUTCOME_LABELS = {
-  CONNECTED: 'Connected', LEFT_VOICEMAIL: 'Left Voicemail',
-  LEFT_MESSAGE: 'Left Message', NO_ANSWER: 'No Answer',
-  BUSY: 'Busy', WRONG_NUMBER: 'Wrong Number',
+  COMPLETED: 'Connected', CONNECTED: 'Connected',
+  LEFT_VOICEMAIL: 'Left Voicemail', LEFT_MESSAGE: 'Left Message',
+  NO_ANSWER: 'No Answer', BUSY: 'Busy', WRONG_NUMBER: 'Wrong Number',
+  FAILED: 'Failed', CANCELLED: 'Cancelled',
 }
 const OUTCOME_COLORS = {
-  CONNECTED: 'var(--success)', LEFT_VOICEMAIL: 'var(--accent)',
-  LEFT_MESSAGE: 'var(--accent)', NO_ANSWER: 'var(--text-muted)',
-  BUSY: 'var(--warning)', WRONG_NUMBER: 'var(--danger)',
+  COMPLETED: 'var(--success)', CONNECTED: 'var(--success)',
+  LEFT_VOICEMAIL: 'var(--accent)', LEFT_MESSAGE: 'var(--accent)',
+  NO_ANSWER: 'var(--text-muted)', BUSY: 'var(--warning)',
+  WRONG_NUMBER: 'var(--danger)', FAILED: 'var(--danger)', CANCELLED: 'var(--text-muted)',
+}
+
+function isConnected(status) {
+  return status === 'CONNECTED' || status === 'COMPLETED'
 }
 const MEETING_OUTCOME_LABELS = {
   COMPLETED: 'Completed', NO_SHOW: 'No Show',
@@ -130,7 +136,7 @@ function buildTrendData(calls, period) {
       const d = parseTs(call.properties?.hs_timestamp)
       if (!d || d < start) continue
       hours[d.getHours()].total++
-      if (call.properties?.hs_call_status === 'CONNECTED') hours[d.getHours()].connected++
+      if (isConnected(call.properties?.hs_call_status)) hours[d.getHours()].connected++
     }
     return hours
   }
@@ -143,7 +149,7 @@ function buildTrendData(calls, period) {
       if (!d || d < start) continue
       const key = days[(d.getDay() + 6) % 7]
       map[key].total++
-      if (call.properties?.hs_call_status === 'CONNECTED') map[key].connected++
+      if (isConnected(call.properties?.hs_call_status)) map[key].connected++
     }
     return days.map(d => ({ label: d, ...map[d] }))
   }
@@ -157,7 +163,7 @@ function buildTrendData(calls, period) {
       const d = parseTs(call.properties?.hs_timestamp)
       if (!d || d < start || (end && d >= end)) continue
       map[d.getDate()].total++
-      if (call.properties?.hs_call_status === 'CONNECTED') map[d.getDate()].connected++
+      if (isConnected(call.properties?.hs_call_status)) map[d.getDate()].connected++
     }
     return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), ...map[i + 1] }))
   }
@@ -173,7 +179,7 @@ function buildTrendData(calls, period) {
       const key = MONTHS[d.getMonth()]
       if (map[key]) {
         map[key].total++
-        if (call.properties?.hs_call_status === 'CONNECTED') map[key].connected++
+        if (isConnected(call.properties?.hs_call_status)) map[key].connected++
       }
     }
     return MONTHS.slice(0, currentMonth + 1).map(m => ({ label: m, ...map[m] }))
@@ -186,7 +192,7 @@ function buildTrendData(calls, period) {
     const d = parseTs(call.properties?.hs_timestamp)
     if (!d || d < start) continue
     map[d.getDate()].total++
-    if (call.properties?.hs_call_status === 'CONNECTED') map[d.getDate()].connected++
+    if (isConnected(call.properties?.hs_call_status)) map[d.getDate()].connected++
   }
   return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), ...map[i + 1] }))
 }
@@ -440,11 +446,11 @@ export default function SdrActivities({ data, loading }) {
     return map
   }, [periodCalls])
 
-  const connected   = outcomes.CONNECTED || 0
+  const connected   = (outcomes.CONNECTED || 0) + (outcomes.COMPLETED || 0)
   const connectRate = periodCalls.length > 0 ? Math.round((connected / periodCalls.length) * 100) : 0
 
   const avgDurationMs = useMemo(() => {
-    const connCalls = periodCalls.filter(c => c.properties?.hs_call_status === 'CONNECTED' && c.properties?.hs_call_duration)
+    const connCalls = periodCalls.filter(c => isConnected(c.properties?.hs_call_status) && c.properties?.hs_call_duration)
     if (!connCalls.length) return 0
     return connCalls.reduce((s, c) => s + Number(c.properties.hs_call_duration), 0) / connCalls.length
   }, [periodCalls])

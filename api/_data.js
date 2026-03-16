@@ -186,7 +186,6 @@ export async function fetchSdrMeetings() {
     data = await hsPost('/crm/v3/objects/meetings/search', {
       filterGroups: [{
         filters: [
-          { propertyName: 'hs_created_by_user_id', operator: 'EQ', value: CALEB_OWNER_ID },
           { propertyName: 'hs_meeting_type', operator: 'EQ', value: 'SDR To Sales Appointment' },
           { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
         ]

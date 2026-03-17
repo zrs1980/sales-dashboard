@@ -1,5 +1,5 @@
 // Pure data-fetching functions, no HTTP response handling
-import { hsGet, hsPost, DEAL_PROPS, CONTACT_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
+import { hsGet, hsPost, DEAL_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
 
 export async function fetchLoopStages() {
   const data = await hsGet(`/crm/v3/pipelines/deals/${LOOP_PIPELINE}/stages`)
@@ -89,18 +89,29 @@ export async function fetchCebaDeals() {
   return { open: openData.results || [] }
 }
 
+const LEAD_PROPS = [
+  'hs_lead_name', 'hs_associated_company_name', 'hs_associated_contact_email',
+  'hs_associated_contact_firstname', 'hs_associated_contact_lastname',
+  'hs_pipeline', 'hs_pipeline_stage', 'hs_lead_label',
+  'hubspot_owner_id', 'hs_primary_contact_id',
+  'hs_calls_attempted_count', 'hs_calls_connected_count',
+  'hs_lead_call_count', 'hs_lead_email_count', 'hs_lead_meeting_count',
+  'hs_lead_outreach_activity_count',
+  'hs_last_activity_date', 'hs_next_activity_date', 'hs_createdate',
+  'hs_pipeline_stage_last_updated',
+  'hs_lead_is_new', 'hs_lead_is_in_progress', 'hs_lead_is_open',
+  'hs_lead_is_qualified', 'hs_lead_is_disqualified',
+  'loop_lead_source', 'hs_lead_source',
+]
+
 export async function fetchLeads() {
-  const BASE_FILTERS = [
-    { propertyName: 'lifecyclestage', operator: 'EQ', value: 'lead' },
-    { propertyName: 'hubspot_owner_id', operator: 'EQ', value: RYAN_OWNER_ID },
-  ]
   const results = []
   let after = undefined
   while (true) {
-    const data = await hsPost('/crm/v3/objects/contacts/search', {
-      filterGroups: [{ filters: BASE_FILTERS }],
-      properties: CONTACT_PROPS,
-      sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
+    const data = await hsPost('/crm/v3/objects/leads/search', {
+      filterGroups: [],
+      properties: LEAD_PROPS,
+      sorts: [{ propertyName: 'hs_createdate', direction: 'DESCENDING' }],
       limit: 100,
       ...(after ? { after } : {}),
     })
@@ -109,6 +120,23 @@ export async function fetchLeads() {
     after = data.paging.next.after
   }
   return results
+}
+
+export async function fetchLeadStages() {
+  try {
+    const data = await hsGet('/crm/v3/pipelines/leads')
+    const stageMap = {}
+    const pipelineMap = {}
+    for (const pipeline of data.results || []) {
+      pipelineMap[pipeline.id] = pipeline.label
+      for (const stage of pipeline.stages || []) {
+        stageMap[stage.id] = stage.label
+      }
+    }
+    return { stageMap, pipelineMap }
+  } catch {
+    return { stageMap: {}, pipelineMap: {} }
+  }
 }
 
 async function fetchOwners() {

@@ -74,3 +74,7 @@ export function dealUrl(id) {
 export function contactUrl(id) {
   return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-1/${id}`
 }
+
+export function leadUrl(id) {
+  return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-136/${id}`
+}

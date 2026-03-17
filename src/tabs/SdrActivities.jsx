@@ -385,13 +385,14 @@ function MeetingRow({ m, expanded, onToggle }) {
             : <span style={{ color: 'var(--text-muted)' }}>{p.contact_name || 'Unknown'}</span>}
         </td>
         <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.hs_meeting_title || '—'}</td>
+        <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtMeetingTime(p.hs_createdate)}</td>
         <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtMeetingTime(p.hs_timestamp)}</td>
         <td><span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}20`, color }}>{label}</span></td>
         <td style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', width: 28 }}>{expanded ? '▲' : '▼'}</td>
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} style={{ padding: '14px 20px 16px', background: 'var(--off-white)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <td colSpan={6} style={{ padding: '14px 20px 16px', background: 'var(--off-white)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px 24px' }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: 4 }}>MEETING TYPE</div>
@@ -434,8 +435,8 @@ export default function SdrActivities({ data, loading }) {
   const calls    = data.calls    || []
   const meetings = data.meetings || []
 
-  const periodCalls    = useMemo(() => filterByPeriod(calls,    period), [calls,    period])
-  const periodMeetings = useMemo(() => filterByPeriod(meetings, period), [meetings, period])
+  const periodCalls    = useMemo(() => filterByPeriod(calls,    period),                    [calls,    period])
+  const periodMeetings = useMemo(() => filterByPeriod(meetings, period, 'hs_createdate'), [meetings, period])
   const trendData      = useMemo(() => buildTrendData(calls,    period), [calls,    period])
 
   const targets = useMemo(() => getDynamicTargets(period), [period])
@@ -457,9 +458,9 @@ export default function SdrActivities({ data, loading }) {
 
   const meetingOutcomes = useMemo(() => {
     const map = {}
-    for (const m of meetings) { const o = m.properties?.hs_meeting_outcome || 'SCHEDULED'; map[o] = (map[o] || 0) + 1 }
+    for (const m of periodMeetings) { const o = m.properties?.hs_meeting_outcome || 'SCHEDULED'; map[o] = (map[o] || 0) + 1 }
     return map
-  }, [meetings])
+  }, [periodMeetings])
 
   const periodLabel = getPeriodLabel(period)
 
@@ -530,14 +531,14 @@ export default function SdrActivities({ data, loading }) {
           <div className="panel-header">
             <div>
               <div className="panel-title">Appointment Outcomes</div>
-              <div className="panel-sub">SDR → Sales · {meetings.length} total (90 days)</div>
+              <div className="panel-sub">SDR → Sales · {periodMeetings.length} in period · {meetings.length} total (90 days)</div>
             </div>
           </div>
           <div style={{ padding: '16px 20px' }}>
-            {meetings.length === 0
-              ? <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>No appointments found</div>
+            {periodMeetings.length === 0
+              ? <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>No appointments in this period</div>
               : Object.entries(meetingOutcomes).sort((a, b) => b[1] - a[1]).map(([o, n]) => (
-                  <OutcomeBar key={o} label={MEETING_OUTCOME_LABELS[o] || o} count={n} total={meetings.length} color={MEETING_OUTCOME_COLORS[o]} />
+                  <OutcomeBar key={o} label={MEETING_OUTCOME_LABELS[o] || o} count={n} total={periodMeetings.length} color={MEETING_OUTCOME_COLORS[o]} />
                 ))
             }
           </div>
@@ -553,16 +554,16 @@ export default function SdrActivities({ data, loading }) {
           <div className="panel-header">
             <div>
               <div className="panel-title">SDR → Sales Appointments</div>
-              <div className="panel-sub">{meetings.length} appointments · last 90 days · click row to expand details</div>
+              <div className="panel-sub">{periodMeetings.length} appointments · {periodLabel} · click row to expand details</div>
             </div>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Contact</th><th>Meeting</th><th>Scheduled</th><th>Outcome</th><th style={{ width: 28 }}></th></tr>
+                <tr><th>Contact</th><th>Meeting</th><th>Created</th><th>Scheduled</th><th>Outcome</th><th style={{ width: 28 }}></th></tr>
               </thead>
               <tbody>
-                {meetings.map(m => (
+                {periodMeetings.map(m => (
                   <MeetingRow
                     key={m.id}
                     m={m}

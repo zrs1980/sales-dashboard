@@ -316,6 +316,7 @@ export async function fetchSdrMeetings() {
       properties: {
         hs_meeting_title:   meta.title || '',
         hs_timestamp:       eng.timestamp  ? String(eng.timestamp)  : '',
+        hs_createdate:      eng.createdAt  ? String(eng.createdAt)  : '',
         hs_meeting_end_time: meta.endTime  ? String(meta.endTime)   : '',
         hs_meeting_outcome: meta.meetingOutcome || '',
         hs_meeting_type:    eng.activityType   || '',

@@ -111,6 +111,52 @@ export async function fetchLeads() {
   return results
 }
 
+async function fetchOwners() {
+  try {
+    const data = await hsGet('/crm/v3/owners', { limit: 100 })
+    const byOwnerId = {}
+    const byUserId  = {}
+    for (const o of data.results || []) {
+      const name = [o.firstName, o.lastName].filter(Boolean).join(' ') || o.email || String(o.id)
+      byOwnerId[String(o.id)] = name
+      if (o.userId) byUserId[String(o.userId)] = name
+    }
+    return { byOwnerId, byUserId }
+  } catch {
+    return { byOwnerId: {}, byUserId: {} }
+  }
+}
+
+async function batchCompanyNames(objectType, objectIds) {
+  if (!objectIds.length) return {}
+  try {
+    const assocData = await hsPost(`/crm/v4/associations/${objectType}/companies/batch/read`, {
+      inputs: objectIds.map(id => ({ id: String(id) })),
+    })
+    const objToCompany = {}
+    const companyIds = new Set()
+    for (const r of assocData.results || []) {
+      if (r.from?.id && r.to?.length > 0) {
+        const cid = String(r.to[0].toObjectId)
+        objToCompany[r.from.id] = cid
+        companyIds.add(cid)
+      }
+    }
+    if (!companyIds.size) return {}
+    const companyData = await hsPost('/crm/v3/objects/companies/batch/read', {
+      inputs: [...companyIds].map(id => ({ id })),
+      properties: ['name'],
+    })
+    const names = {}
+    for (const c of companyData.results || []) names[c.id] = c.properties?.name || ''
+    const result = {}
+    for (const [objId, cid] of Object.entries(objToCompany)) result[objId] = names[cid] || ''
+    return result
+  } catch {
+    return {}
+  }
+}
+
 async function batchContactNames(objectType, objectIds) {
   if (!objectIds.length) return {}
   try {
@@ -190,7 +236,7 @@ export async function fetchSdrMeetings() {
           { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
         ]
       }],
-      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type', 'hs_meeting_body'],
+      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type', 'hs_meeting_body', 'hubspot_owner_id', 'hs_created_by_user_id'],
       sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
       limit: 100,
     })
@@ -198,10 +244,18 @@ export async function fetchSdrMeetings() {
 
   const meetings = data.results || []
 
-  const contactMap = await batchContactNames('meetings', meetings.map(m => m.id))
+  const [contactMap, companyMap, owners] = await Promise.all([
+    batchContactNames('meetings', meetings.map(m => m.id)),
+    batchCompanyNames('meetings', meetings.map(m => m.id)),
+    fetchOwners(),
+  ])
+
   for (const m of meetings) {
     const c = contactMap[m.id]
     if (c) { m.properties.contact_name = c.name; m.properties.contact_id = c.id }
+    m.properties.company_name  = companyMap[m.id] || ''
+    m.properties.owner_name    = owners.byOwnerId[String(m.properties.hubspot_owner_id)] || ''
+    m.properties.creator_name  = owners.byUserId[String(m.properties.hs_created_by_user_id)] || ''
   }
   return meetings
 }

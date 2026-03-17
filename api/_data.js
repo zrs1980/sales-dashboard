@@ -195,6 +195,19 @@ async function batchContactNames(objectType, objectIds) {
   }
 }
 
+export async function fetchCallDispositions() {
+  try {
+    const data = await hsGet('/crm/v3/properties/calls/hs_call_disposition')
+    const map = {}
+    for (const opt of data.options || []) {
+      map[opt.value] = opt.label
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
 export async function fetchSdr() {
   const since = Date.now() - 90 * 24 * 60 * 60 * 1000
   const calls = []

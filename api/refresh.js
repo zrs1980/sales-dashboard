@@ -1,4 +1,4 @@
-import { fetchLoopDeals, fetchLoopStages, fetchDealCountries, fetchCebaDeals, fetchCebaStages, fetchLeads, fetchSdr, fetchSdrMeetings } from './_data.js'
+import { fetchLoopDeals, fetchLoopStages, fetchDealCountries, fetchCebaDeals, fetchCebaStages, fetchLeads, fetchSdr, fetchSdrMeetings, fetchCallDispositions } from './_data.js'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -23,12 +23,14 @@ export default async function handler(req, res) {
     const sdrCalls = await fetchSdr()
     await sleep(300)
     const sdrMeetings = await fetchSdrMeetings()
+    await sleep(300)
+    const callDispositions = await fetchCallDispositions()
 
     res.json({
       loop: { deals: loopDeals, stages: loopStages },
       ceba: { ...ceba, stages: cebaStages },
       leads: { leads },
-      sdr: { calls: sdrCalls, meetings: sdrMeetings },
+      sdr: { calls: sdrCalls, meetings: sdrMeetings, callDispositions },
       refreshedAt: new Date().toISOString(),
     })
   } catch (e) {

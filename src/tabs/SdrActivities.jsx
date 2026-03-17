@@ -22,6 +22,15 @@ const OUTCOME_COLORS = {
 function isConnected(status) {
   return status === 'CONNECTED' || status === 'COMPLETED'
 }
+
+function dispositionColor(label) {
+  const l = (label || '').toLowerCase()
+  if (l.includes('connected') || l.includes('answered')) return 'var(--success)'
+  if (l.includes('voicemail') || l.includes('message'))  return 'var(--accent)'
+  if (l.includes('busy'))                                return 'var(--warning)'
+  if (l.includes('wrong') || l.includes('failed'))       return 'var(--danger)'
+  return 'var(--text-muted)'
+}
 const MEETING_OUTCOME_LABELS = {
   COMPLETED: 'Completed', NO_SHOW: 'No Show',
   CANCELLED: 'Cancelled', RESCHEDULED: 'Rescheduled', SCHEDULED: 'Scheduled',
@@ -432,8 +441,9 @@ export default function SdrActivities({ data, loading }) {
   const [period, setPeriod]               = useState('week')
   const [expandedMeeting, setExpanded]    = useState(null)
 
-  const calls    = data.calls    || []
-  const meetings = data.meetings || []
+  const calls             = data.calls             || []
+  const meetings          = data.meetings          || []
+  const callDispositions  = data.callDispositions  || {}
 
   const periodCalls    = useMemo(() => filterByPeriod(calls,    period),                    [calls,    period])
   const periodMeetings = useMemo(() => filterByPeriod(meetings, period, 'hs_createdate'), [meetings, period])
@@ -443,9 +453,13 @@ export default function SdrActivities({ data, loading }) {
 
   const outcomes = useMemo(() => {
     const map = {}
-    for (const c of periodCalls) { const s = c.properties?.hs_call_status || 'UNKNOWN'; map[s] = (map[s] || 0) + 1 }
+    for (const c of periodCalls) {
+      const guid = c.properties?.hs_call_disposition
+      const key = guid ? (callDispositions[guid] || guid) : (c.properties?.hs_call_status || 'Unknown')
+      map[key] = (map[key] || 0) + 1
+    }
     return map
-  }, [periodCalls])
+  }, [periodCalls, callDispositions])
 
   const connected   = (outcomes.CONNECTED || 0) + (outcomes.COMPLETED || 0)
   const connectRate = periodCalls.length > 0 ? Math.round((connected / periodCalls.length) * 100) : 0
@@ -520,8 +534,8 @@ export default function SdrActivities({ data, loading }) {
           <div style={{ padding: '16px 20px' }}>
             {periodCalls.length === 0
               ? <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>No calls in this period</div>
-              : Object.entries(outcomes).sort((a, b) => b[1] - a[1]).map(([s, n]) => (
-                  <OutcomeBar key={s} label={OUTCOME_LABELS[s] || s} count={n} total={periodCalls.length} color={OUTCOME_COLORS[s]} />
+              : Object.entries(outcomes).sort((a, b) => b[1] - a[1]).map(([label, n]) => (
+                  <OutcomeBar key={label} label={label} count={n} total={periodCalls.length} color={dispositionColor(label)} />
                 ))
             }
           </div>

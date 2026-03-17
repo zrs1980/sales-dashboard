@@ -1,5 +1,84 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { fmtDate } from '../utils.js'
+
+function MultiSelect({ options, selected, onChange, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  function toggle(val) {
+    const next = selected.includes(val)
+      ? selected.filter(v => v !== val)
+      : [...selected, val]
+    onChange(next)
+  }
+
+  const label = selected.length === 0
+    ? placeholder
+    : selected.length === 1
+      ? (options.find(o => o.value === selected[0])?.label || selected[0])
+      : `${selected.length} selected`
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="filter-select"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 6, cursor: 'pointer', minWidth: 140,
+          color: selected.length ? 'var(--text-primary)' : 'var(--text-muted)',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+        <span style={{ fontSize: 10, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+          background: 'var(--white)', border: '1px solid var(--border)',
+          borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          minWidth: 180, maxHeight: 260, overflowY: 'auto', padding: '4px 0',
+        }}>
+          {selected.length > 0 && (
+            <div
+              onClick={() => onChange([])}
+              style={{
+                padding: '6px 12px', fontSize: 11, color: 'var(--accent)',
+                cursor: 'pointer', borderBottom: '1px solid var(--border)', marginBottom: 2,
+              }}
+            >
+              Clear selection
+            </div>
+          )}
+          {options.map(opt => (
+            <label key={opt.value} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 12px', cursor: 'pointer', fontSize: 12,
+              color: 'var(--text-primary)',
+              background: selected.includes(opt.value) ? 'var(--off-white)' : 'transparent',
+            }}>
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+                style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const PAGE_SIZE = 25
 const PORTAL_ID = '243159630'
@@ -196,13 +275,27 @@ function getSortVal(lead, col, stageMap) {
 
 export default function LeadDashboard({ data, loading }) {
   const [search, setSearch] = useState('')
-  const [pipelineFilter, setPipelineFilter] = useState('')
-  const [stageFilter, setStageFilter] = useState('')
+  const [pipelineFilter, setPipelineFilter] = useState([])
+  const [stageFilter, setStageFilter] = useState([])
   const [labelFilter, setLabelFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [sortKey, setSortKey] = useState('created')
   const [sortDir, setSortDir] = useState('desc')
   const [page, setPage] = useState(1)
+
+  function handlePipelineChange(next) {
+    setPipelineFilter(next)
+    // Drop any stage selections that don't belong to the newly selected pipelines
+    if (next.length > 0) {
+      const validStages = new Set(
+        leads
+          .filter(l => next.includes(l.properties?.hs_pipeline))
+          .map(l => l.properties?.hs_pipeline_stage)
+      )
+      setStageFilter(prev => prev.filter(s => validStages.has(s)))
+    }
+    setPage(1)
+  }
 
   function handleSort(col) {
     if (sortKey === col) {
@@ -241,7 +334,7 @@ export default function LeadDashboard({ data, loading }) {
   const stagesForPipeline = useMemo(() => {
     const seen = new Set()
     return leads
-      .filter(l => !pipelineFilter || l.properties?.hs_pipeline === pipelineFilter)
+      .filter(l => pipelineFilter.length === 0 || pipelineFilter.includes(l.properties?.hs_pipeline))
       .map(l => l.properties?.hs_pipeline_stage)
       .filter(s => s && !seen.has(s) && seen.add(s))
   }, [leads, pipelineFilter])
@@ -255,8 +348,8 @@ export default function LeadDashboard({ data, loading }) {
       const email = (p.hs_associated_contact_email || '').toLowerCase()
 
       if (q && !name.includes(q) && !company.includes(q) && !email.includes(q)) return false
-      if (pipelineFilter && p.hs_pipeline !== pipelineFilter) return false
-      if (stageFilter && p.hs_pipeline_stage !== stageFilter) return false
+      if (pipelineFilter.length > 0 && !pipelineFilter.includes(p.hs_pipeline)) return false
+      if (stageFilter.length > 0 && !stageFilter.includes(p.hs_pipeline_stage)) return false
       if (labelFilter && p.hs_lead_label !== labelFilter) return false
       if (statusFilter === 'new' && p.hs_lead_is_new !== 'true') return false
       if (statusFilter === 'in_progress' && p.hs_lead_is_in_progress !== 'true') return false
@@ -334,18 +427,24 @@ export default function LeadDashboard({ data, loading }) {
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
           />
-          <select className="filter-select" value={pipelineFilter} onChange={e => { setPipelineFilter(e.target.value); setStageFilter(''); setPage(1) }}>
-            <option value="">All Pipelines</option>
-            {pipelines.map(pid => (
-              <option key={pid} value={pid}>{pipelineMap[pid] || (pid === 'lead-pipeline-id' ? 'Loop SQL' : pid)}</option>
-            ))}
-          </select>
-          <select className="filter-select" value={stageFilter} onChange={handleFilterChange(setStageFilter)}>
-            <option value="">All Stages</option>
-            {stagesForPipeline.map(sid => (
-              <option key={sid} value={sid}>{stageMap[sid] || sid}</option>
-            ))}
-          </select>
+          <MultiSelect
+            placeholder="All Pipelines"
+            options={pipelines.map(pid => ({
+              value: pid,
+              label: pipelineMap[pid] || (pid === 'lead-pipeline-id' ? 'Loop SQL' : pid),
+            }))}
+            selected={pipelineFilter}
+            onChange={handlePipelineChange}
+          />
+          <MultiSelect
+            placeholder="All Stages"
+            options={stagesForPipeline.map(sid => ({
+              value: sid,
+              label: stageMap[sid] || sid,
+            }))}
+            selected={stageFilter}
+            onChange={next => { setStageFilter(next); setPage(1) }}
+          />
           <select className="filter-select" value={labelFilter} onChange={handleFilterChange(setLabelFilter)}>
             <option value="">All Labels</option>
             <option value="HOT">HOT</option>

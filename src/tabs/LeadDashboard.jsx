@@ -47,17 +47,22 @@ function MultiSelect({ options, selected, onChange, placeholder }) {
           borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           minWidth: 180, maxHeight: 260, overflowY: 'auto', padding: '4px 0',
         }}>
-          {selected.length > 0 && (
+          <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 2 }}>
             <div
-              onClick={() => onChange([])}
-              style={{
-                padding: '6px 12px', fontSize: 11, color: 'var(--accent)',
-                cursor: 'pointer', borderBottom: '1px solid var(--border)', marginBottom: 2,
-              }}
+              onClick={() => onChange(options.map(o => o.value))}
+              style={{ padding: '6px 12px', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', display: 'inline-block' }}
             >
-              Clear selection
+              Select all
             </div>
-          )}
+            {selected.length > 0 && (
+              <span
+                onClick={() => onChange([])}
+                style={{ padding: '6px 12px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                Clear
+              </span>
+            )}
+          </div>
           {options.map(opt => (
             <label key={opt.value} style={{
               display: 'flex', alignItems: 'center', gap: 8,

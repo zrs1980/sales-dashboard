@@ -1,43 +1,58 @@
-import { hsGet, hsPost } from './_hubspot.js'
+import { hsGet } from './_hubspot.js'
 
 export const config = { maxDuration: 30 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-
-  const engId = '347874573019'
   const results = {}
 
-  // 1. Try fetching as v3 meeting object
+  // 1. Fetch first page of v1 engagements and show structure
   try {
-    results.v3_meeting = await hsGet(`/crm/v3/objects/meetings/${engId}`, {
-      properties: 'hs_meeting_type,hs_meeting_title,hs_timestamp,hubspot_owner_id,hs_meeting_outcome,hs_created_by_user_id',
-    })
-  } catch (e) { results.v3_error = e.message }
-
-  // 2. Try fetching as v1 engagement
-  try {
-    results.v1_engagement = await hsGet(`/engagements/v1/engagements/${engId}`)
+    const page = await hsGet('/engagements/v1/engagements/paged', { limit: 10, offset: 0 })
+    results.v1_first_page = {
+      hasMore: page.hasMore,
+      total: page.total,
+      count: (page.results || []).length,
+      sample: (page.results || []).slice(0, 3).map(e => ({
+        id: e.engagement?.id,
+        type: e.engagement?.type,
+        activityType: e.engagement?.activityType,
+        timestamp: e.engagement?.timestamp,
+        ownerId: e.engagement?.ownerId,
+      })),
+    }
   } catch (e) { results.v1_error = e.message }
 
-  // 3. Show all hs_meeting_type values found in last 90 days (no type filter)
+  // 2. Fetch the known engagement directly
   try {
-    const since = Date.now() - 90 * 24 * 60 * 60 * 1000
-    const data = await hsPost('/crm/v3/objects/meetings/search', {
-      filterGroups: [{ filters: [
-        { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
-      ]}],
-      properties: ['hs_meeting_type', 'hs_meeting_title'],
-      limit: 100,
-    })
-    const typeCounts = {}
-    for (const m of data.results || []) {
-      const t = m.properties?.hs_meeting_type || '(empty)'
-      typeCounts[t] = (typeCounts[t] || 0) + 1
+    const eng = await hsGet('/engagements/v1/engagements/347874573019')
+    results.known_engagement = {
+      id: eng.engagement?.id,
+      type: eng.engagement?.type,
+      activityType: eng.engagement?.activityType,
+      timestamp: eng.engagement?.timestamp,
+      ownerId: eng.engagement?.ownerId,
     }
-    results.v3_type_counts = typeCounts
-    results.v3_total_last90 = data.total
-  } catch (e) { results.v3_sample_error = e.message }
+  } catch (e) { results.known_engagement_error = e.message }
+
+  // 3. Count meeting types across first 250 engagements
+  try {
+    const page = await hsGet('/engagements/v1/engagements/paged', { limit: 250, offset: 0 })
+    const typeCounts = {}
+    const activityTypeCounts = {}
+    for (const e of page.results || []) {
+      const t = e.engagement?.type || '(null)'
+      typeCounts[t] = (typeCounts[t] || 0) + 1
+      if (t === 'MEETING') {
+        const a = e.engagement?.activityType || '(null)'
+        activityTypeCounts[a] = (activityTypeCounts[a] || 0) + 1
+      }
+    }
+    results.type_counts = typeCounts
+    results.meeting_activity_types = activityTypeCounts
+    results.since_90d = Date.now() - 90 * 24 * 60 * 60 * 1000
+    results.oldest_timestamp = (page.results || []).at(-1)?.engagement?.timestamp
+  } catch (e) { results.count_error = e.message }
 
   res.json(results)
 }

@@ -32,6 +32,32 @@ function fmtNext(iso) {
   return { label: fmtDate(iso), color: 'var(--text-secondary)' }
 }
 
+const MAX_TOUCHES = 7
+
+function TouchDots({ count }) {
+  const filled = Math.min(count, MAX_TOUCHES)
+  const isDone = count >= MAX_TOUCHES
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <div style={{ display: 'flex', gap: 3 }}>
+        {Array.from({ length: MAX_TOUCHES }, (_, i) => (
+          <div key={i} style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: i < filled
+              ? (isDone ? 'var(--success)' : 'var(--accent)')
+              : 'var(--border)',
+          }} />
+        ))}
+      </div>
+      <span style={{
+        fontSize: 11, fontFamily: "'DM Mono', monospace",
+        color: isDone ? 'var(--success)' : count === 0 ? 'var(--danger)' : 'var(--text-muted)',
+        fontWeight: 600,
+      }}>{count}/{MAX_TOUCHES}</span>
+    </div>
+  )
+}
+
 function LabelBadge({ label }) {
   if (!label) return <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
   const colors = {
@@ -73,6 +99,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   const calls = parseInt(p.hs_lead_call_count || p.hs_calls_attempted_count || 0)
   const emails = parseInt(p.hs_lead_email_count || 0)
   const meetings = parseInt(p.hs_lead_meeting_count || 0)
+  const totalActivities = parseInt(p.hs_lead_outreach_activity_count || 0) || (calls + emails + meetings)
 
   const lastActivity = fmtActivity(p.hs_last_activity_date)
   const nextActivity = fmtNext(p.hs_next_activity_date)
@@ -111,6 +138,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
           ? <span style={{ color: nextActivity.color }}>{nextActivity.label}</span>
           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
       </td>
+      <td><TouchDots count={totalActivities} /></td>
       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(p.hs_createdate)}</td>
       <td><a className="deal-link" href={url} target="_blank" rel="noreferrer">Open →</a></td>
     </tr>
@@ -138,7 +166,8 @@ export default function LeadDashboard({ data, loading }) {
   const qualifiedCount = leads.filter(l => l.properties?.hs_lead_is_qualified === 'true').length
   const noActivityCount = leads.filter(l => {
     const p = l.properties || {}
-    return parseInt(p.hs_lead_call_count || 0) === 0 && parseInt(p.hs_lead_email_count || 0) === 0 && parseInt(p.hs_lead_meeting_count || 0) === 0
+    const total = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
+    return total === 0
   }).length
 
   // Unique pipelines for filter
@@ -173,8 +202,8 @@ export default function LeadDashboard({ data, loading }) {
       if (statusFilter === 'qualified' && p.hs_lead_is_qualified !== 'true') return false
       if (statusFilter === 'disqualified' && p.hs_lead_is_disqualified !== 'true') return false
       if (statusFilter === 'no_activity') {
-        const hasActivity = parseInt(p.hs_lead_call_count || 0) > 0 || parseInt(p.hs_lead_email_count || 0) > 0 || parseInt(p.hs_lead_meeting_count || 0) > 0
-        if (hasActivity) return false
+        const total = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
+        if (total > 0) return false
       }
       return true
     })
@@ -233,10 +262,10 @@ export default function LeadDashboard({ data, loading }) {
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
           />
-          <select className="filter-select" value={pipelineFilter} onChange={handleFilterChange(p => { setPipelineFilter(p); setStageFilter('') })}>
+          <select className="filter-select" value={pipelineFilter} onChange={e => { setPipelineFilter(e.target.value); setStageFilter(''); setPage(1) }}>
             <option value="">All Pipelines</option>
             {pipelines.map(pid => (
-              <option key={pid} value={pid}>{pipelineMap[pid] || pid}</option>
+              <option key={pid} value={pid}>{pipelineMap[pid] || (pid === 'lead-pipeline-id' ? 'Loop SQL' : pid)}</option>
             ))}
           </select>
           <select className="filter-select" value={stageFilter} onChange={handleFilterChange(setStageFilter)}>
@@ -271,6 +300,7 @@ export default function LeadDashboard({ data, loading }) {
                 <th>Label</th>
                 <th>Status</th>
                 <th>Activity</th>
+                <th>Progress</th>
                 <th>Last Active</th>
                 <th>Next Activity</th>
                 <th>Created</th>
@@ -289,7 +319,7 @@ export default function LeadDashboard({ data, loading }) {
               ))}
               {pageLeads.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                  <td colSpan={12} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
                     No leads match filters
                   </td>
                 </tr>

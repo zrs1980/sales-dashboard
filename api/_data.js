@@ -230,27 +230,27 @@ export async function fetchSdrMeetings() {
   const engagements = []
   let offset = 0
 
-  // v3 meetings objects don't carry activityType — use v1 engagements API instead
+  // v3 meetings objects don't carry activityType — use v1 recent/modified endpoint
+  // sorted by lastUpdated descending so we can stop when we pass the 90-day boundary
   while (true) {
     let page
     try {
-      page = await hsGet('/engagements/v1/engagements/paged', { limit: 250, offset })
+      page = await hsGet('/engagements/v1/engagements/recent/modified', { count: 100, offset })
     } catch { break }
 
-    for (const eng of page.results || []) {
+    const results = page.results || []
+    let hitBoundary = false
+
+    for (const eng of results) {
       const e = eng.engagement || {}
-      if (
-        e.type === 'MEETING' &&
-        e.activityType === 'SDR to Sales Appointment' &&
-        e.timestamp >= since
-      ) {
+      if (e.lastUpdated < since) { hitBoundary = true; break }
+      if (e.type === 'MEETING' && e.activityType === 'SDR to Sales Appointment') {
         engagements.push(eng)
       }
     }
 
-    const oldest = (page.results || []).at(-1)?.engagement?.timestamp
-    if (!page.hasMore || (oldest && oldest < since) || engagements.length >= 500) break
-    offset += 250
+    if (!page.hasMore || hitBoundary || engagements.length >= 500) break
+    offset += 100
   }
 
   if (!engagements.length) return []

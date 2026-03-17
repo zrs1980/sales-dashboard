@@ -227,35 +227,105 @@ export async function fetchSdr() {
 
 export async function fetchSdrMeetings() {
   const since = Date.now() - 90 * 24 * 60 * 60 * 1000
-  let data
-  try {
-    data = await hsPost('/crm/v3/objects/meetings/search', {
-      filterGroups: [{
-        filters: [
-          { propertyName: 'hs_meeting_type', operator: 'EQ', value: 'SDR To Sales Appointment' },
-          { propertyName: 'hs_timestamp', operator: 'GTE', value: String(since) },
-        ]
-      }],
-      properties: ['hs_meeting_title', 'hs_timestamp', 'hs_meeting_outcome', 'hs_meeting_end_time', 'hs_meeting_type', 'hs_meeting_body', 'hubspot_owner_id', 'hs_created_by_user_id'],
-      sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
-      limit: 100,
-    })
-  } catch { return [] }
+  const engagements = []
+  let offset = 0
 
-  const meetings = data.results || []
+  // v3 meetings objects don't carry activityType — use v1 engagements API instead
+  while (true) {
+    let page
+    try {
+      page = await hsGet('/engagements/v1/engagements/paged', { limit: 250, offset })
+    } catch { break }
 
-  const [contactMap, companyMap, owners] = await Promise.all([
-    batchContactNames('meetings', meetings.map(m => m.id)),
-    batchCompanyNames('meetings', meetings.map(m => m.id)),
+    for (const eng of page.results || []) {
+      const e = eng.engagement || {}
+      if (
+        e.type === 'MEETING' &&
+        e.activityType === 'SDR to Sales Appointment' &&
+        e.timestamp >= since
+      ) {
+        engagements.push(eng)
+      }
+    }
+
+    const oldest = (page.results || []).at(-1)?.engagement?.timestamp
+    if (!page.hasMore || (oldest && oldest < since) || engagements.length >= 500) break
+    offset += 250
+  }
+
+  if (!engagements.length) return []
+
+  // Collect IDs for batch enrichment
+  const contactIdSet = new Set()
+  const companyIdSet = new Set()
+  for (const e of engagements) {
+    const a = e.associations || {}
+    ;(a.contactIds || []).forEach(id => contactIdSet.add(String(id)))
+    ;(a.companyIds  || []).forEach(id => companyIdSet.add(String(id)))
+  }
+
+  // Batch fetch contact names, company names, and owner map in parallel
+  const [contactNames, companyNames, owners] = await Promise.all([
+    (async () => {
+      const ids = [...contactIdSet]
+      if (!ids.length) return {}
+      try {
+        const d = await hsPost('/crm/v3/objects/contacts/batch/read', {
+          inputs: ids.map(id => ({ id })),
+          properties: ['firstname', 'lastname'],
+        })
+        const out = {}
+        for (const c of d.results || []) {
+          out[c.id] = [c.properties?.firstname, c.properties?.lastname].filter(Boolean).join(' ') || 'Unknown'
+        }
+        return out
+      } catch { return {} }
+    })(),
+    (async () => {
+      const ids = [...companyIdSet]
+      if (!ids.length) return {}
+      try {
+        const d = await hsPost('/crm/v3/objects/companies/batch/read', {
+          inputs: ids.map(id => ({ id })),
+          properties: ['name'],
+        })
+        const out = {}
+        for (const c of d.results || []) out[c.id] = c.properties?.name || ''
+        return out
+      } catch { return {} }
+    })(),
     fetchOwners(),
   ])
 
-  for (const m of meetings) {
-    const c = contactMap[m.id]
-    if (c) { m.properties.contact_name = c.name; m.properties.contact_id = c.id }
-    m.properties.company_name  = companyMap[m.id] || ''
-    m.properties.owner_name    = owners.byOwnerId[String(m.properties.hubspot_owner_id)] || ''
-    m.properties.creator_name  = owners.byUserId[String(m.properties.hs_created_by_user_id)] || ''
-  }
-  return meetings
+  // Normalise to the same shape the frontend expects
+  return engagements.map(e => {
+    const eng   = e.engagement  || {}
+    const assoc = e.associations || {}
+    const meta  = e.metadata    || {}
+
+    const contactId = String(assoc.contactIds?.[0] ?? '')
+    const companyId = String(assoc.companyIds?.[0] ?? '')
+    // attendeeOwnerIds[0] is the SDR who booked the meeting
+    const bookedById = String(eng.attendeeOwnerIds?.[0] ?? eng.modifiedBy ?? '')
+
+    // Strip HTML from internal notes
+    const notes = (meta.internalMeetingNotes || '').replace(/<[^>]+>/g, '').trim()
+
+    return {
+      id: String(eng.id),
+      properties: {
+        hs_meeting_title:   meta.title || '',
+        hs_timestamp:       eng.timestamp  ? String(eng.timestamp)  : '',
+        hs_meeting_end_time: meta.endTime  ? String(meta.endTime)   : '',
+        hs_meeting_outcome: meta.meetingOutcome || '',
+        hs_meeting_type:    eng.activityType   || '',
+        hs_meeting_body:    notes,
+        contact_name: contactNames[contactId] || '',
+        contact_id:   contactId,
+        company_name: companyNames[companyId] || '',
+        owner_name:   owners.byOwnerId[String(eng.ownerId)]   || '',
+        creator_name: owners.byOwnerId[bookedById]            || '',
+      },
+    }
+  })
 }

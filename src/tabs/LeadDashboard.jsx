@@ -145,13 +145,74 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   )
 }
 
+function SortableTh({ col, label, sortKey, sortDir, onSort }) {
+  const active = sortKey === col
+  return (
+    <th
+      onClick={() => onSort(col)}
+      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+    >
+      {label}{' '}
+      <span style={{ fontSize: 10, color: active ? 'var(--accent)' : 'var(--border)' }}>
+        {active ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼'}
+      </span>
+    </th>
+  )
+}
+
+function getSortVal(lead, col, stageMap) {
+  const p = lead.properties || {}
+  const totalActivities = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
+  switch (col) {
+    case 'name':
+      return (p.hs_lead_name || [p.hs_associated_contact_firstname, p.hs_associated_contact_lastname].filter(Boolean).join(' ') || '').toLowerCase()
+    case 'company':
+      return (p.hs_associated_company_name || '').toLowerCase()
+    case 'stage':
+      return (stageMap[p.hs_pipeline_stage] || p.hs_pipeline_stage || '').toLowerCase()
+    case 'label': {
+      const order = { HOT: 0, WARM: 1, COLD: 2, '': 3 }
+      return order[p.hs_lead_label || ''] ?? 3
+    }
+    case 'status': {
+      if (p.hs_lead_is_disqualified === 'true') return 4
+      if (p.hs_lead_is_qualified === 'true') return 3
+      if (p.hs_lead_is_in_progress === 'true') return 2
+      if (p.hs_lead_is_new === 'true') return 0
+      return 1
+    }
+    case 'progress':
+      return totalActivities
+    case 'last_active':
+      return p.hs_last_activity_date ? new Date(p.hs_last_activity_date).getTime() : 0
+    case 'next_activity':
+      return p.hs_next_activity_date ? new Date(p.hs_next_activity_date).getTime() : Infinity
+    case 'created':
+      return p.hs_createdate ? new Date(p.hs_createdate).getTime() : 0
+    default:
+      return ''
+  }
+}
+
 export default function LeadDashboard({ data, loading }) {
   const [search, setSearch] = useState('')
   const [pipelineFilter, setPipelineFilter] = useState('')
   const [stageFilter, setStageFilter] = useState('')
   const [labelFilter, setLabelFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [sortKey, setSortKey] = useState('created')
+  const [sortDir, setSortDir] = useState('desc')
   const [page, setPage] = useState(1)
+
+  function handleSort(col) {
+    if (sortKey === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(col)
+      setSortDir('asc')
+    }
+    setPage(1)
+  }
 
   if (loading && !data) return <div className="state-box">Loading leads…</div>
   if (!data) return null
@@ -209,10 +270,21 @@ export default function LeadDashboard({ data, loading }) {
     })
   }, [leads, search, pipelineFilter, stageFilter, labelFilter, statusFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      const av = getSortVal(a, sortKey, stageMap)
+      const bv = getSortVal(b, sortKey, stageMap)
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+  }, [filtered, sortKey, sortDir, stageMap])
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const start = (safePage - 1) * PAGE_SIZE
-  const pageLeads = filtered.slice(start, start + PAGE_SIZE)
+  const pageLeads = sorted.slice(start, start + PAGE_SIZE)
 
   function handleFilterChange(setter) {
     return (e) => { setter(e.target.value); setPage(1) }
@@ -252,7 +324,7 @@ export default function LeadDashboard({ data, loading }) {
         <div className="panel-header">
           <div>
             <div className="panel-title">All Lead Records ({total} total)</div>
-            <div className="panel-sub">Click name to open in HubSpot · Sorted by most recent</div>
+            <div className="panel-sub">Click name to open in HubSpot · Click column headers to sort</div>
           </div>
         </div>
         <div className="filter-row">
@@ -294,16 +366,16 @@ export default function LeadDashboard({ data, loading }) {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Name</th>
-                <th>Company</th>
-                <th>Pipeline / Stage</th>
-                <th>Label</th>
-                <th>Status</th>
+                <SortableTh col="name"          label="Name"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="company"       label="Company"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="stage"         label="Pipeline / Stage" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="label"         label="Label"         sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="status"        label="Status"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Activity</th>
-                <th>Progress</th>
-                <th>Last Active</th>
-                <th>Next Activity</th>
-                <th>Created</th>
+                <SortableTh col="progress"      label="Progress"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="last_active"   label="Last Active"   sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="next_activity" label="Next Activity" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="created"       label="Created"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Link</th>
               </tr>
             </thead>
@@ -329,7 +401,7 @@ export default function LeadDashboard({ data, loading }) {
         </div>
         <div className="pagination">
           <span className="pagination-info">
-            Showing {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length} leads
+            Showing {sorted.length === 0 ? 0 : start + 1}–{Math.min(start + PAGE_SIZE, sorted.length)} of {sorted.length} leads
           </span>
           <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Page {safePage} of {totalPages}</span>

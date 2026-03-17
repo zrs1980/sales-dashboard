@@ -195,16 +195,27 @@ async function batchContactNames(objectType, objectIds) {
   }
 }
 
+// HubSpot's standard call disposition GUIDs (consistent across all portals)
+const HS_DEFAULT_DISPOSITIONS = {
+  'f240bbac-87c9-4f6e-bf70-924b57d47db7': 'Connected',
+  'b2cf5968-33bf-45d3-a7f3-8c08fcc8a0e7': 'Left Voicemail',
+  'a4c4c377-d246-4b32-a13b-75a56a4cd8d2': 'Left Live Message',
+  '73a0d17f-1163-4015-bdd5-ec830791da20': 'Busy',
+  '17b47fee-58de-441e-a44c-c6300d46f273': 'No Answer',
+  '9d9162e7-6cf3-4944-bf63-4dff82258764': 'Wrong Number',
+  'e3e52cf4-77af-4e98-8f96-f47e44b7f4d3': 'No Longer at Company',
+}
+
 export async function fetchCallDispositions() {
   try {
     const data = await hsGet('/crm/v3/properties/calls/hs_call_disposition')
-    const map = {}
+    const map = { ...HS_DEFAULT_DISPOSITIONS }
     for (const opt of data.options || []) {
       map[opt.value] = opt.label
     }
     return map
   } catch {
-    return {}
+    return { ...HS_DEFAULT_DISPOSITIONS }
   }
 }
 

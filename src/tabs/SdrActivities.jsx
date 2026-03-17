@@ -25,10 +25,14 @@ function isConnected(status) {
 
 function dispositionColor(label) {
   const l = (label || '').toLowerCase()
-  if (l.includes('connected') || l.includes('answered')) return 'var(--success)'
+  if (l.includes('connected – qualified') || l === 'connected') return 'var(--success)'
+  if (l.includes('connected'))                           return 'var(--success)'
+  if (l.includes('meeting booked'))                      return 'var(--purple)'
   if (l.includes('voicemail') || l.includes('message'))  return 'var(--accent)'
-  if (l.includes('busy'))                                return 'var(--warning)'
-  if (l.includes('wrong') || l.includes('failed'))       return 'var(--danger)'
+  if (l.includes('referral'))                            return 'var(--accent)'
+  if (l.includes('gatekeeper'))                          return 'var(--warning)'
+  if (l.includes('busy') || l.includes('hang up'))       return 'var(--warning)'
+  if (l.includes('wrong') || l.includes('bad data') || l.includes('do not call')) return 'var(--danger)'
   return 'var(--text-muted)'
 }
 const MEETING_OUTCOME_LABELS = {

@@ -195,15 +195,23 @@ async function batchContactNames(objectType, objectIds) {
   }
 }
 
-// HubSpot's standard call disposition GUIDs (consistent across all portals)
+// Call disposition GUIDs from this HubSpot portal
 const HS_DEFAULT_DISPOSITIONS = {
+  'eef07f3b-264a-40d6-bcaa-171638627dd9': 'Bad Data',
+  '9d9162e7-6cf3-4944-bf63-4dff82258764': 'Busy',
   'f240bbac-87c9-4f6e-bf70-924b57d47db7': 'Connected',
-  'b2cf5968-33bf-45d3-a7f3-8c08fcc8a0e7': 'Left Voicemail',
-  'a4c4c377-d246-4b32-a13b-75a56a4cd8d2': 'Left Live Message',
-  '73a0d17f-1163-4015-bdd5-ec830791da20': 'Busy',
-  '17b47fee-58de-441e-a44c-c6300d46f273': 'No Answer',
-  '9d9162e7-6cf3-4944-bf63-4dff82258764': 'Wrong Number',
-  'e3e52cf4-77af-4e98-8f96-f47e44b7f4d3': 'No Longer at Company',
+  'e448b440-6d4a-4830-9408-9504e32407e5': 'Connected – Not Qualified',
+  'b668f5fe-107f-48cc-890c-cb44eef9056e': 'Connected – Qualified',
+  '83e2c746-f09b-4850-9408-4be10cf998ac': 'Do Not Call',
+  '79cd6d70-4ecf-469e-9612-6dc137e71c29': 'Gatekeeper',
+  '0bf1994a-ba83-456b-9394-0ee1f3fc35fb': 'Hang Up',
+  'a4c4c377-d246-4b32-a13b-75a56a4cd0ff': 'Left live message',
+  'b2cf5968-551e-4856-9783-52b3da59a7d0': 'Left voicemail',
+  'f9f28482-7e1a-4f9a-9269-c81593b90e2c': 'Meeting Booked',
+  '73a0d17f-1163-4015-bdd5-ec830791da20': 'No answer',
+  '1db9fe2c-e621-414e-8ac1-535f7d179aef': 'No Longer with Company',
+  '3d6d77a6-e3be-46f0-9264-b10a1d165962': 'Recieved Referral',
+  '17b47fee-58de-441e-a44c-c6300d46f273': 'Wrong number',
 }
 
 export async function fetchCallDispositions() {

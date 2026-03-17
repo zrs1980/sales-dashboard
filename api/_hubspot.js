@@ -12,13 +12,30 @@ function headers() {
 export async function hsGet(path, params = {}) {
   const url = new URL(BASE + path)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
-  const res = await fetch(url.toString(), { headers: headers() })
+  const res = await fetchWithRetry(url.toString(), { headers: headers() })
   if (!res.ok) throw new Error(`HubSpot GET ${path} → ${res.status}`)
   return res.json()
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+async function fetchWithRetry(url, opts, retries = 4) {
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(url, opts)
+    if (res.status === 429) {
+      if (i === retries) {
+        const text = await res.text()
+        throw new Error(`HubSpot ${opts.method || 'GET'} ${url} → 429: ${text}`)
+      }
+      await sleep(1000 * (i + 1)) // 1s, 2s, 3s, 4s
+      continue
+    }
+    return res
+  }
+}
+
 export async function hsPost(path, body) {
-  const res = await fetch(BASE + path, {
+  const res = await fetchWithRetry(BASE + path, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify(body),

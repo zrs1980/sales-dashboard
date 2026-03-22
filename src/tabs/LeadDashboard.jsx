@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { fmtDate } from '../utils.js'
+import LeadInsights from '../components/LeadInsights.jsx'
 
 function MultiSelect({ options, selected, onChange, placeholder }) {
   const [open, setOpen] = useState(false)
@@ -283,7 +284,7 @@ export default function LeadDashboard({ data, loading }) {
   const [pipelineFilter, setPipelineFilter] = useState([])
   const [stageFilter, setStageFilter] = useState([])
   const [labelFilter, setLabelFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState([])
   const [sortKey, setSortKey] = useState('created')
   const [sortDir, setSortDir] = useState('desc')
   const [page, setPage] = useState(1)
@@ -356,13 +357,17 @@ export default function LeadDashboard({ data, loading }) {
       if (pipelineFilter.length > 0 && !pipelineFilter.includes(p.hs_pipeline)) return false
       if (stageFilter.length > 0 && !stageFilter.includes(p.hs_pipeline_stage)) return false
       if (labelFilter && p.hs_lead_label !== labelFilter) return false
-      if (statusFilter === 'new' && p.hs_lead_is_new !== 'true') return false
-      if (statusFilter === 'in_progress' && p.hs_lead_is_in_progress !== 'true') return false
-      if (statusFilter === 'qualified' && p.hs_lead_is_qualified !== 'true') return false
-      if (statusFilter === 'disqualified' && p.hs_lead_is_disqualified !== 'true') return false
-      if (statusFilter === 'no_activity') {
-        const total = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
-        if (total > 0) return false
+      if (statusFilter.length > 0) {
+        const actTotal = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
+        const matchesAny = statusFilter.some(s => {
+          if (s === 'new') return p.hs_lead_is_new === 'true'
+          if (s === 'in_progress') return p.hs_lead_is_in_progress === 'true'
+          if (s === 'qualified') return p.hs_lead_is_qualified === 'true'
+          if (s === 'disqualified') return p.hs_lead_is_disqualified === 'true'
+          if (s === 'no_activity') return actTotal === 0
+          return false
+        })
+        if (!matchesAny) return false
       }
       return true
     })
@@ -418,6 +423,8 @@ export default function LeadDashboard({ data, loading }) {
         </div>
       </div>
 
+      <LeadInsights leads={leads} stageMap={stageMap} pipelineMap={pipelineMap} />
+
       <div className="panel">
         <div className="panel-header">
           <div>
@@ -456,14 +463,18 @@ export default function LeadDashboard({ data, loading }) {
             <option value="WARM">WARM</option>
             <option value="COLD">COLD</option>
           </select>
-          <select className="filter-select" value={statusFilter} onChange={handleFilterChange(setStatusFilter)}>
-            <option value="">All Statuses</option>
-            <option value="new">New</option>
-            <option value="in_progress">In Progress</option>
-            <option value="qualified">Qualified</option>
-            <option value="disqualified">Disqualified</option>
-            <option value="no_activity">No Activity</option>
-          </select>
+          <MultiSelect
+            placeholder="All Statuses"
+            options={[
+              { value: 'new', label: 'New' },
+              { value: 'in_progress', label: 'In Progress' },
+              { value: 'qualified', label: 'Qualified' },
+              { value: 'disqualified', label: 'Disqualified' },
+              { value: 'no_activity', label: 'No Activity' },
+            ]}
+            selected={statusFilter}
+            onChange={next => { setStatusFilter(next); setPage(1) }}
+          />
         </div>
         <div className="table-wrap">
           <table>

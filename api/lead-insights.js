@@ -23,10 +23,12 @@ export default async function handler(req, res) {
   const { leads, stageMap = {}, pipelineMap = {} } = req.body || {}
   if (!leads || !Array.isArray(leads)) return res.status(400).json({ error: 'leads required' })
 
-  // Focus on engaged leads: in_progress or open (not new, qualified, or disqualified)
+  // Focus on active leads: in the pipeline and not disqualified
   const engaged = leads.filter(l => {
     const p = l.properties || {}
-    return p.hs_lead_is_in_progress === 'true' || p.hs_lead_is_open === 'true'
+    if (p.hs_lead_is_disqualified === 'true') return false
+    // Must have a pipeline stage assigned
+    return !!p.hs_pipeline_stage
   })
 
   if (engaged.length === 0) {
@@ -74,7 +76,7 @@ export default async function handler(req, res) {
 
   const prompt = `You are a sales operations analyst reviewing the lead follow-up cadence for the Loop/CEBA sales team.
 
-You are analyzing ${engaged.length} engaged leads (status: In Progress or Open) to identify which ones have NOT been followed up with in a timely manner. A lead in an engaged state should typically be contacted within 2-3 days and have a scheduled next activity at all times.
+You are analyzing ${engaged.length} active leads to identify which ones have NOT been followed up with in a timely manner. The stage label tells you where each lead is in the pipeline. Leads in stages like "Attempting to Contact", "Connected", or any engaged stage should be contacted within 2-3 days and always have a scheduled next activity.
 
 Engaged Leads:
 ${summaries}

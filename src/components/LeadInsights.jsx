@@ -58,7 +58,7 @@ export default function LeadInsights({ leads, stageMap, pipelineMap }) {
             {state === 'loading'
               ? 'Claude is reviewing engaged leads for follow-up gaps…'
               : state === 'loaded'
-                ? `${engagedCount} engaged leads analyzed · In Progress & Open status`
+                ? `${engagedCount} active leads analyzed · pipeline stage follow-up review`
                 : 'AI-generated follow-up analysis for engaged leads'
             }
           </div>

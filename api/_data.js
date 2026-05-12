@@ -1,5 +1,5 @@
 // Pure data-fetching functions, no HTTP response handling
-import { hsGet, hsPost, DEAL_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
+import { hsGet, hsPost, DEAL_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, CEBA_SERVICES_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
 
 export async function fetchLoopStages() {
   const data = await hsGet(`/crm/v3/pipelines/deals/${LOOP_PIPELINE}/stages`)
@@ -74,6 +74,28 @@ export async function fetchCebaStages() {
     map[stage.id] = stage.label
   }
   return map
+}
+
+export async function fetchCebaServicesStages() {
+  const data = await hsGet(`/crm/v3/pipelines/deals/${CEBA_SERVICES_PIPELINE}/stages`)
+  const map = {}
+  for (const stage of data.results || []) {
+    map[stage.id] = stage.label
+  }
+  return map
+}
+
+export async function fetchCebaServicesDeals() {
+  const data = await hsPost('/crm/v3/objects/deals/search', {
+    filterGroups: [{
+      filters: [
+        { propertyName: 'pipeline', operator: 'EQ', value: CEBA_SERVICES_PIPELINE },
+      ]
+    }],
+    properties: DEAL_PROPS,
+    limit: 100,
+  })
+  return { open: data.results || [] }
 }
 
 export async function fetchCebaDeals() {

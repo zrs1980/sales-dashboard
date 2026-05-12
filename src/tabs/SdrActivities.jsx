@@ -63,6 +63,12 @@ function getWindowStart(period) {
     d.setHours(0, 0, 0, 0)
     return d
   }
+  if (period === 'lastweek') {
+    const d = new Date(now)
+    d.setDate(now.getDate() - ((now.getDay() + 6) % 7) - 7)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
   if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth() - 1, 1)
   if (period === 'ytd')       return new Date(now.getFullYear(), 0, 1)
   return new Date(now.getFullYear(), now.getMonth(), 1) // month
@@ -70,6 +76,12 @@ function getWindowStart(period) {
 
 function getWindowEnd(period) {
   const now = new Date()
+  if (period === 'lastweek') {
+    const d = new Date(now)
+    d.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
   if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth(), 1)
   return null
 }
@@ -97,6 +109,12 @@ function countWorkdays(start, end) {
 function getDynamicTargets(period) {
   if (CALL_TARGETS[period]) return { calls: CALL_TARGETS[period], meetings: MEETING_TARGETS[period] }
   const now = new Date()
+  if (period === 'lastweek') {
+    const start = getWindowStart('lastweek')
+    const end   = getWindowEnd('lastweek')
+    const wd = countWorkdays(start, end)
+    return { calls: wd * CALL_TARGET_PER_DAY, meetings: wd * MEETING_TARGET_PER_DAY }
+  }
   if (period === 'lastmonth') {
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const end   = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -116,6 +134,7 @@ function getPeriodLabel(period) {
   const now = new Date()
   if (period === 'day')       return 'Today'
   if (period === 'week')      return 'This Week'
+  if (period === 'lastweek')  return 'Last Week'
   if (period === 'month')     return 'This Month'
   if (period === 'lastmonth') return new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' })
   if (period === 'ytd')       return `YTD ${now.getFullYear()}`
@@ -154,12 +173,13 @@ function buildTrendData(calls, period) {
     return hours
   }
 
-  if (period === 'week') {
+  if (period === 'week' || period === 'lastweek') {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const map = Object.fromEntries(days.map(d => [d, { total: 0, connected: 0 }]))
+    const windowEnd = getWindowEnd(period)
     for (const call of calls) {
       const d = parseTs(call.properties?.hs_timestamp)
-      if (!d || d < start) continue
+      if (!d || d < start || (windowEnd && d >= windowEnd)) continue
       const key = days[(d.getDay() + 6) % 7]
       map[key].total++
       if (isConnected(call.properties?.hs_call_status)) map[key].connected++
@@ -214,6 +234,7 @@ function trendSubLabel(period) {
   const now = new Date()
   if (period === 'day')       return 'By hour · today'
   if (period === 'week')      return 'By day · this week'
+  if (period === 'lastweek')  return 'By day · last week'
   if (period === 'month')     return 'By day · this month'
   if (period === 'lastmonth') return `By day · ${new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-US', { month: 'long' })}`
   if (period === 'ytd')       return `By month · ${now.getFullYear()}`
@@ -225,7 +246,7 @@ function trendSubLabel(period) {
 function PeriodToggle({ period, onChange }) {
   return (
     <div style={{ display: 'flex', gap: 3, background: 'var(--light-gray)', borderRadius: 8, padding: 3 }}>
-      {[['day','Today'],['week','This Week'],['month','This Month'],['lastmonth','Last Month'],['ytd','YTD']].map(([key, label]) => (
+      {[['day','Today'],['week','This Week'],['lastweek','Last Week'],['month','This Month'],['lastmonth','Last Month'],['ytd','YTD']].map(([key, label]) => (
         <button key={key} onClick={() => onChange(key)} style={{
           padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
           fontSize: 12, fontWeight: period === key ? 600 : 400,

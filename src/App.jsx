@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import LoopPipeline from './tabs/LoopPipeline.jsx'
 import CebaPipeline from './tabs/CebaPipeline.jsx'
+import CebaServicesPipeline from './tabs/CebaServicesPipeline.jsx'
 import SdrActivities from './tabs/SdrActivities.jsx'
 import SalesMeetings from './tabs/SalesMeetings.jsx'
 import LeadDashboard from './tabs/LeadDashboard.jsx'
@@ -8,6 +9,7 @@ import LeadDashboard from './tabs/LeadDashboard.jsx'
 const TABS = [
   { id: 'loop',     label: 'Loop ERP Pipeline' },
   { id: 'ceba',     label: 'CEBA Pipeline' },
+  { id: 'cebaServices', label: 'CEBA Services' },
   { id: 'sdr',      label: 'SDR Activities' },
   { id: 'meetings', label: 'Sales Meetings' },
   { id: 'leads',    label: 'Lead Dashboard' },
@@ -95,6 +97,7 @@ export default function App() {
         <div className="content">
           {activeTab === 'loop' && <LoopPipeline data={data?.loop} loading={loading} />}
           {activeTab === 'ceba' && <CebaPipeline data={data?.ceba} loading={loading} />}
+          {activeTab === 'cebaServices' && <CebaServicesPipeline data={data?.cebaServices} loading={loading} />}
           {activeTab === 'sdr'      && <SdrActivities data={data?.sdr}      loading={loading} />}
           {activeTab === 'meetings' && <SalesMeetings data={data?.sdr}      loading={loading} />}
           {activeTab === 'leads'    && <LeadDashboard data={data?.leads}    loading={loading} />}

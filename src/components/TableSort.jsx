@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { getStageLabel, getStageProb } from '../utils.js'
 
 export function useSortState() {
-  const [sort, setSort] = useState({ key: null, dir: 'asc' })
+  const [sort, setSort] = useState({ key: 'stage', dir: 'asc' })
   function toggle(key) {
     setSort(s => s.key === key
       ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
@@ -34,8 +34,13 @@ export function sortDeals(deals, key, dir, stageMap) {
       aVal = (ap.dealname || '').toLowerCase()
       bVal = (bp.dealname || '').toLowerCase()
     } else if (key === 'stage') {
-      aVal = stageLabel(ap).toLowerCase()
-      bVal = stageLabel(bp).toLowerCase()
+      // Sort by probability (sales cycle order), tiebreak by amount descending
+      const aProb = prob(ap)
+      const bProb = prob(bp)
+      if (aProb !== bProb) return dir === 'asc' ? aProb - bProb : bProb - aProb
+      const aAmt = parseFloat(ap.amount || 0)
+      const bAmt = parseFloat(bp.amount || 0)
+      return bAmt - aAmt // biggest deals first within same stage
     } else if (key === 'country') {
       aVal = (ap.company_country || '').toLowerCase()
       bVal = (bp.company_country || '').toLowerCase()

@@ -9,6 +9,7 @@ import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
 import PipelineInsights from '../components/PipelineInsights.jsx'
 import { useSortState, sortDeals, SortTh, FilterBar, selectStyle } from '../components/TableSort.jsx'
+import StageReference from '../components/StageReference.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -133,6 +134,8 @@ export default function LoopPipeline({ data, loading }) {
           <div className="kpi-sub">Per open deal</div>
         </div>
       </div>
+
+      <StageReference pipeline="loop" />
 
       <DealAnalytics
         deals={deals}

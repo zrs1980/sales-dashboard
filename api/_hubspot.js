@@ -64,6 +64,7 @@ export const RYAN_OWNER_ID = '159716972'
 export const CALEB_OWNER_ID = '161027134'
 export const LOOP_PIPELINE = 'default'
 export const CEBA_PIPELINE = '1677684439'
+export const CEBA_SERVICES_PIPELINE = '1222457063'
 
 export const LOOP_CLOSED_STAGES = ['2681276110', '2681276111', 'closedwon', 'closedlost']
 

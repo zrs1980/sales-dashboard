@@ -9,6 +9,7 @@ import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
 import PipelineInsights from '../components/PipelineInsights.jsx'
 import { useSortState, sortDeals, SortTh, FilterBar, selectStyle } from '../components/TableSort.jsx'
+import StageReference from '../components/StageReference.jsx'
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -98,6 +99,8 @@ export default function CebaPipeline({ data, loading }) {
           <div className="kpi-sub">{open.length} active deals</div>
         </div>
       </div>
+
+      <StageReference pipeline="ceba" />
 
       <DealAnalytics
         deals={open}

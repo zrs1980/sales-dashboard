@@ -89,8 +89,9 @@ function MultiSelect({ options, selected, onChange, placeholder }) {
 const PAGE_SIZE = 25
 const PORTAL_ID = '243159630'
 
-function leadUrl(id) {
-  return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-136/${id}`
+function leadUrl(leadId, contactId) {
+  if (contactId) return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-1/${contactId}`
+  return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-136/${leadId}`
 }
 
 function fmtActivity(iso) {
@@ -189,7 +190,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   const lastActivity = fmtActivity(p.hs_last_activity_date)
   const nextActivity = fmtNext(p.hs_next_activity_date)
 
-  const url = leadUrl(id)
+  const url = leadUrl(id, p.hs_primary_contact_id)
 
   return (
     <tr>

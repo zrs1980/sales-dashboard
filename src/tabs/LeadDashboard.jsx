@@ -302,6 +302,40 @@ export default function LeadDashboard({ data, loading }) {
     setPage(1)
   }
 
+  const ACTIVE_LOOP_STAGE_LABELS = new Set(['Discovery Ready', 'Engaged', 'Discovery Scheduled', 'Intent', 'Discovery Complete'])
+
+  function applyActiveLoopPreset() {
+    const loopPipelineId = Object.entries(pipelineMap).find(([, label]) =>
+      label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
+    )?.[0]
+    const stageIds = leads
+      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
+      .map(l => l.properties?.hs_pipeline_stage)
+      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
+    if (loopPipelineId) setPipelineFilter([loopPipelineId])
+    setStageFilter(stageIds)
+    setPage(1)
+  }
+
+  const isActiveLoopPreset = useMemo(() => {
+    const loopPipelineId = Object.entries(pipelineMap).find(([, label]) =>
+      label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
+    )?.[0]
+    if (!loopPipelineId) return false
+    if (pipelineFilter.length !== 1 || pipelineFilter[0] !== loopPipelineId) return false
+    const activeStageIds = leads
+      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
+      .map(l => l.properties?.hs_pipeline_stage)
+      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
+    return activeStageIds.length === stageFilter.length && activeStageIds.every(id => stageFilter.includes(id))
+  }, [pipelineFilter, stageFilter, pipelineMap, stageMap, leads])
+
+  function clearPreset() {
+    setPipelineFilter([])
+    setStageFilter([])
+    setPage(1)
+  }
+
   function handleSort(col) {
     if (sortKey === col) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -443,6 +477,21 @@ export default function LeadDashboard({ data, loading }) {
           <div>
             <div className="panel-title">All Lead Records ({total} total)</div>
             <div className="panel-sub">Click name to open in HubSpot · Click column headers to sort</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 2 }}>Quick view:</span>
+            <button
+              onClick={isActiveLoopPreset ? clearPreset : applyActiveLoopPreset}
+              style={{
+                padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                fontWeight: 500, border: '1px solid',
+                background: isActiveLoopPreset ? 'var(--accent)' : 'var(--white)',
+                color: isActiveLoopPreset ? 'var(--white)' : 'var(--accent)',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              {isActiveLoopPreset ? '✕ ' : ''}Active Loop Leads
+            </button>
           </div>
         </div>
         <div className="filter-row">

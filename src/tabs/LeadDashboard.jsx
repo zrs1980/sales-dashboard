@@ -335,14 +335,28 @@ export default function LeadDashboard({ data, loading }) {
     return leads.map(l => l.properties?.hs_pipeline).filter(p => p && !seen.has(p) && seen.add(p))
   }, [leads])
 
-  // Stages for selected pipeline filter
+  // Stages for selected pipeline filter, with pipeline name for disambiguation
   const stagesForPipeline = useMemo(() => {
-    const seen = new Set()
-    return leads
+    const seenIds = new Set()
+    const labelCounts = {}
+    const entries = leads
       .filter(l => pipelineFilter.length === 0 || pipelineFilter.includes(l.properties?.hs_pipeline))
-      .map(l => l.properties?.hs_pipeline_stage)
-      .filter(s => s && !seen.has(s) && seen.add(s))
-  }, [leads, pipelineFilter])
+      .map(l => ({ stageId: l.properties?.hs_pipeline_stage, pipelineId: l.properties?.hs_pipeline }))
+      .filter(({ stageId }) => stageId && !seenIds.has(stageId) && seenIds.add(stageId))
+    // count how many entries share the same stage label
+    for (const { stageId } of entries) {
+      const label = stageMap[stageId] || stageId
+      labelCounts[label] = (labelCounts[label] || 0) + 1
+    }
+    return entries.map(({ stageId, pipelineId }) => {
+      const label = stageMap[stageId] || stageId
+      const pipelineName = pipelineMap[pipelineId] || pipelineId || ''
+      return {
+        value: stageId,
+        label: labelCounts[label] > 1 ? `${label} (${pipelineName})` : label,
+      }
+    })
+  }, [leads, pipelineFilter, stageMap, pipelineMap])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -449,10 +463,7 @@ export default function LeadDashboard({ data, loading }) {
           />
           <MultiSelect
             placeholder="All Stages"
-            options={stagesForPipeline.map(sid => ({
-              value: sid,
-              label: stageMap[sid] || sid,
-            }))}
+            options={stagesForPipeline}
             selected={stageFilter}
             onChange={next => { setStageFilter(next); setPage(1) }}
           />

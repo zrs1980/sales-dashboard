@@ -187,7 +187,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   const meetings = parseInt(p.hs_lead_meeting_count || 0)
   const totalActivities = parseInt(p.hs_lead_outreach_activity_count || 0) || (calls + emails + meetings)
 
-  const lastActivity = fmtActivity(p.hs_last_activity_date)
+  const lastActivity = p.hs_last_activity_date ? fmtDate(p.hs_last_activity_date) : null
   const nextActivity = fmtNext(p.hs_next_activity_date)
 
   const url = leadUrl(id, p.hs_primary_contact_id)
@@ -489,7 +489,7 @@ export default function LeadDashboard({ data, loading }) {
                 <SortableTh col="status"        label="Status"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Activity</th>
                 <SortableTh col="progress"      label="Progress"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortableTh col="last_active"   label="Last Active"   sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="last_active"   label="Last Activity Date" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="next_activity" label="Next Activity" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="created"       label="Created"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Link</th>

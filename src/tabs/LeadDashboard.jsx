@@ -224,7 +224,6 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
           ? <span style={{ color: nextActivity.color }}>{nextActivity.label}</span>
           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
       </td>
-      <td><TouchDots count={totalActivities} /></td>
       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(p.hs_createdate)}</td>
       <td><a className="deal-link" href={url} target="_blank" rel="noreferrer">Open →</a></td>
     </tr>
@@ -488,7 +487,6 @@ export default function LeadDashboard({ data, loading }) {
                 <SortableTh col="label"         label="Label"         sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="status"        label="Status"        sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Activity</th>
-                <SortableTh col="progress"      label="Progress"      sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="last_active"   label="Last Activity Date" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="next_activity" label="Next Activity" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="created"       label="Created"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -507,7 +505,7 @@ export default function LeadDashboard({ data, loading }) {
               ))}
               {pageLeads.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
                     No leads match filters
                   </td>
                 </tr>

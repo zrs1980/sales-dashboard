@@ -30,18 +30,6 @@ async function notionPost(path, body) {
   return res.json()
 }
 
-async function notionPatch(path, body) {
-  const res = await fetch(`${NOTION_BASE}${path}`, {
-    method: 'PATCH',
-    headers: notionHeaders(),
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || `Notion PATCH ${path} → ${res.status}`)
-  }
-  return res.json()
-}
 
 function extractPageId(url) {
   const match = (url || '').match(/([a-f0-9]{32})/)
@@ -89,18 +77,7 @@ export default async function handler(req, res) {
       },
     })
 
-    // 3. Append an AI Meeting Notes block directly to the page
-    let blockError = null
-    let blockResult = null
-    try {
-      blockResult = await notionPatch(`/blocks/${newMeeting.id}/children`, {
-        children: [{ type: 'meeting_notes', meeting_notes: {} }],
-      })
-    } catch (e) {
-      blockError = e.message
-    }
-
-    res.json({ meetingUrl: newMeeting.url, blockError, blockResult })
+    res.json({ meetingUrl: newMeeting.url })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

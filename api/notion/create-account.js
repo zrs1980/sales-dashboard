@@ -11,6 +11,15 @@ function notionHeaders() {
   }
 }
 
+async function notionGet(path) {
+  const res = await fetch(`${NOTION_BASE}${path}`, { headers: notionHeaders() })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Notion GET ${path} → ${res.status}`)
+  }
+  return res.json()
+}
+
 async function notionPost(path, body) {
   const res = await fetch(`${NOTION_BASE}${path}`, {
     method: 'POST',
@@ -38,15 +47,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Create the account page in the CEBA Only Account Database
+    // 1. Find the title property name in the target database
+    const db = await notionGet(`/databases/${DATABASE_ID}`)
+    const titleProp = Object.entries(db.properties).find(([, v]) => v.type === 'title')?.[0]
+    if (!titleProp) throw new Error('Could not find title property in Notion database')
+
+    // 2. Create the account page
     const newPage = await notionPost('/pages', {
       parent: { database_id: DATABASE_ID },
       properties: {
-        'Company ': {
+        [titleProp]: {
           title: [{ type: 'text', text: { content: dealName } }],
         },
         'Account Type': {
           select: { name: 'Prospect' },
+        },
+        'Company': {
+          rich_text: [{ type: 'text', text: { content: 'Loop ERP' } }],
         },
       },
     })
@@ -54,7 +71,7 @@ export default async function handler(req, res) {
     const newPageId = newPage.id
     const notionUrl = newPage.url
 
-    // 2. Create child databases matching the template structure (run in parallel)
+    // 3. Create child databases matching the template structure (run in parallel)
     await Promise.all([
       // Sales Meeting Notes — full-page database with meeting tracking schema
       notionPost('/databases', {
@@ -87,7 +104,7 @@ export default async function handler(req, res) {
       }),
     ])
 
-    // 3. Write the Notion link back to the HubSpot deal
+    // 4. Write the Notion link back to the HubSpot deal
     await hsPatch(`/crm/v3/objects/deals/${dealId}`, {
       properties: { notion_link: notionUrl },
     })

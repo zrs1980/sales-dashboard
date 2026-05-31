@@ -42,15 +42,15 @@ function CloseDate({ raw }) {
   return <span>{label}</span>
 }
 
-function NextActivity({ date, subject, taskId }) {
+function NextActivity({ date, subject, taskId, dealId }) {
   if (!date) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
   const until = daysUntil(date)
   const overdue = until != null && until < 0
   const soon = until != null && until <= 1
   const upcoming = until != null && until <= 7
   const color = overdue || soon ? 'var(--danger)' : upcoming ? 'var(--warning)' : 'inherit'
-  const taskUrl = taskId
-    ? `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-27/${taskId}`
+  const taskUrl = taskId && dealId
+    ? `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${dealId}?taskId=${taskId}`
     : null
 
   return (
@@ -99,7 +99,7 @@ function DealRow({ deal, stageMap, onNewTask }) {
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>
       <td>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <NextActivity date={p.hs_next_activity_date} subject={p.hs_next_activity_subject} taskId={p.hs_next_task_id} />
+          <NextActivity date={p.hs_next_activity_date} subject={p.hs_next_activity_subject} taskId={p.hs_next_task_id} dealId={id} />
           <button
             onClick={() => onNewTask({ id, name })}
             style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}

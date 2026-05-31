@@ -88,14 +88,15 @@ async function fetchOpenTasksForDeals(dealIds) {
   const result = {}
   for (const [dealId, ids] of Object.entries(dealToTaskIds)) {
     const open = ids
-      .map(id => tasks[id])
-      .filter(t => t && OPEN.has(t.hs_task_status))
+      .filter(id => tasks[id] && OPEN.has(tasks[id].hs_task_status))
+      .map(id => ({ id, ...tasks[id] }))
       .sort((a, b) => parseInt(a.hs_timestamp || 0) - parseInt(b.hs_timestamp || 0))
 
     if (open.length > 0) {
       result[dealId] = {
         date: open[0].hs_timestamp,
         subject: open[0].hs_task_subject || '',
+        taskId: open[0].id,
       }
     }
   }
@@ -127,6 +128,7 @@ export async function fetchLoopDeals() {
       if (task) {
         deal.properties.hs_next_activity_date = task.date
         deal.properties.hs_next_activity_subject = task.subject
+        deal.properties.hs_next_task_id = task.taskId
       }
     }
   }

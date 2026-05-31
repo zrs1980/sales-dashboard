@@ -9,6 +9,9 @@ import DealAnalytics from '../components/DealAnalytics.jsx'
 import PipelineInsights from '../components/PipelineInsights.jsx'
 import { useSortState, sortDeals, SortTh, selectStyle } from '../components/TableSort.jsx'
 import StageReference from '../components/StageReference.jsx'
+import CreateTaskModal from '../components/CreateTaskModal.jsx'
+
+const PORTAL_ID = '243159630'
 
 const STAGE_ORDER = [
   'New Deal', 'Req. Analysis', 'Demo Booked', 'Demo Complete',
@@ -32,27 +35,39 @@ function CloseDate({ raw }) {
   return <span>{label}</span>
 }
 
-function NextActivity({ date, subject }) {
+function NextActivity({ date, subject, taskId }) {
   if (!date) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
   const until = daysUntil(date)
   const overdue = until != null && until < 0
   const soon = until != null && until <= 1
   const upcoming = until != null && until <= 7
+  const color = overdue || soon ? 'var(--danger)' : upcoming ? 'var(--warning)' : 'inherit'
+  const taskUrl = taskId
+    ? `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-27/${taskId}`
+    : null
+
   return (
-    <div>
-      <div style={{
-        fontSize: 12,
-        color: overdue || soon ? 'var(--danger)' : upcoming ? 'var(--warning)' : undefined,
-        fontWeight: overdue || soon ? 600 : undefined,
-      }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ fontSize: 12, color, fontWeight: overdue || soon ? 600 : undefined }}>
         {fmtDate(date)}
-      </div>
-      {subject && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>{subject}</div>}
+      </span>
+      {subject && taskUrl ? (
+        <a
+          href={taskUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', lineHeight: 1.3 }}
+        >
+          {subject} ↗
+        </a>
+      ) : subject ? (
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{subject}</span>
+      ) : null}
     </div>
   )
 }
 
-function DealRow({ deal, stageMap }) {
+function DealRow({ deal, stageMap, onNewTask }) {
   const p = deal.properties || {}
   const id = deal.id
   const name = p.dealname || 'Unnamed Deal'
@@ -75,7 +90,17 @@ function DealRow({ deal, stageMap }) {
       <td><RiskFlag days={daysInStage} /></td>
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>
-      <td><NextActivity date={p.hs_next_activity_date} subject={p.hs_next_activity_subject} /></td>
+      <td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <NextActivity date={p.hs_next_activity_date} subject={p.hs_next_activity_subject} taskId={p.hs_next_task_id} />
+          <button
+            onClick={() => onNewTask({ id, name })}
+            style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
+          >
+            + Task
+          </button>
+        </div>
+      </td>
       <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} dealId={id} dealName={name} /></td>
     </tr>
   )
@@ -109,6 +134,7 @@ export default function LoopPipeline({ data, loading }) {
   const [countryFilter, setCountryFilter] = useState('')
   const [collapsedStages, setCollapsedStages] = useState(new Set())
   const [sort, toggleSort] = useSortState()
+  const [taskModal, setTaskModal] = useState(null) // { id, name }
 
   const filtered = deals.filter(d => {
     const p = d.properties || {}
@@ -149,6 +175,13 @@ export default function LoopPipeline({ data, loading }) {
 
   return (
     <>
+      {taskModal && (
+        <CreateTaskModal
+          dealId={taskModal.id}
+          dealName={taskModal.name}
+          onClose={() => setTaskModal(null)}
+        />
+      )}
       <div className="panel">
         <div className="panel-header">
           <div>
@@ -216,7 +249,7 @@ export default function LoopPipeline({ data, loading }) {
                       </span>
                     </td>
                   </tr>
-                  {!isCollapsed && stageDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
+                  {!isCollapsed && stageDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} onNewTask={setTaskModal} />)}
                 </tbody>
               )
             })}

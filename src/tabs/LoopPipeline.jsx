@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import {
   fmtCurrency, fmtDate, daysSince, daysUntil,
-  getStageLabel, getStageBadgeClass, getStageProb,
+  getStageLabel, getStageProb,
   extractNotionPageId
 } from '../utils.js'
 import NotionNotes from '../components/NotionNotes.jsx'
-import AiReview from '../components/AiReview.jsx'
 import DealAnalytics from '../components/DealAnalytics.jsx'
 import PipelineInsights from '../components/PipelineInsights.jsx'
-import { useSortState, sortDeals, SortTh, FilterBar, selectStyle } from '../components/TableSort.jsx'
+import { useSortState, sortDeals, SortTh, selectStyle } from '../components/TableSort.jsx'
 import StageReference from '../components/StageReference.jsx'
+
+const STAGE_ORDER = [
+  'New Deal', 'Req. Analysis', 'Demo Booked', 'Demo Complete',
+  "Add'l Education", 'Negotiation',
+]
 
 function RiskFlag({ days }) {
   if (days == null) return <span className="risk-flag">—</span>
@@ -28,13 +32,32 @@ function CloseDate({ raw }) {
   return <span>{label}</span>
 }
 
+function NextActivity({ date, subject }) {
+  if (!date) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+  const until = daysUntil(date)
+  const overdue = until != null && until < 0
+  const soon = until != null && until <= 1
+  const upcoming = until != null && until <= 7
+  return (
+    <div>
+      <div style={{
+        fontSize: 12,
+        color: overdue || soon ? 'var(--danger)' : upcoming ? 'var(--warning)' : undefined,
+        fontWeight: overdue || soon ? 600 : undefined,
+      }}>
+        {fmtDate(date)}
+      </div>
+      {subject && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>{subject}</div>}
+    </div>
+  )
+}
+
 function DealRow({ deal, stageMap }) {
   const p = deal.properties || {}
   const id = deal.id
   const name = p.dealname || 'Unnamed Deal'
   const amount = parseFloat(p.amount || 0)
   const stage = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
-  const badgeClass = getStageBadgeClass(stage)
   const prob = parseFloat(p.hs_deal_stage_probability || getStageProb(stage))
   const weighted = amount * prob
   const daysInStage = daysSince(p.hs_lastmodifieddate)
@@ -45,7 +68,6 @@ function DealRow({ deal, stageMap }) {
   return (
     <tr>
       <td><a className="deal-link" href={hsUrl} target="_blank" rel="noreferrer">{name}</a></td>
-      <td><span className={`badge ${badgeClass}`}>{stage}</span></td>
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.company_country || '—'}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(amount)}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(weighted)}</td>
@@ -53,8 +75,8 @@ function DealRow({ deal, stageMap }) {
       <td><RiskFlag days={daysInStage} /></td>
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>
+      <td><NextActivity date={p.hs_next_activity_date} subject={p.hs_next_activity_subject} /></td>
       <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} dealId={id} dealName={name} /></td>
-      <td><AiReview dealId={id} notionPageId={notionPageId} dealName={name} /></td>
     </tr>
   )
 }
@@ -84,22 +106,12 @@ export default function LoopPipeline({ data, loading }) {
   }, 0)
   const avg = deals.length ? total / deals.length : 0
 
-  // Filters — stageFilter is shared with the DealAnalytics chart click
-  const [stageFilter, setStageFilter] = useState('')
   const [countryFilter, setCountryFilter] = useState('')
+  const [collapsedStages, setCollapsedStages] = useState(new Set())
   const [sort, toggleSort] = useSortState()
-
-  const stageOptions = [...new Set(deals.map(d => {
-    const p = d.properties || {}
-    return (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
-  }))].sort()
 
   const filtered = deals.filter(d => {
     const p = d.properties || {}
-    if (stageFilter) {
-      const label = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
-      if (label !== stageFilter) return false
-    }
     if (countryFilter) {
       const country = (p.company_country || '').trim().toLowerCase()
       if (countryFilter === 'us' && country !== 'united states') return false
@@ -108,15 +120,119 @@ export default function LoopPipeline({ data, loading }) {
     return true
   })
 
-  const visibleDeals = sortDeals(filtered, sort.key, sort.dir, stageMap)
+  const sorted = sortDeals(filtered, sort.key, sort.dir, stageMap)
 
-  function clearFilters() {
-    setStageFilter('')
-    setCountryFilter('')
+  const knownStages = new Set(STAGE_ORDER)
+  const byStage = {}
+  for (const d of sorted) {
+    const p = d.properties || {}
+    const stage = (stageMap && stageMap[p.dealstage]) || getStageLabel(p.dealstage)
+    if (!byStage[stage]) byStage[stage] = []
+    byStage[stage].push(d)
   }
+
+  const stageGroups = [
+    ...STAGE_ORDER.filter(s => byStage[s]).map(s => ({ stage: s, deals: byStage[s] })),
+    ...Object.keys(byStage).filter(s => !knownStages.has(s)).map(s => ({ stage: s, deals: byStage[s] })),
+  ]
+
+  function toggleStage(stage) {
+    setCollapsedStages(prev => {
+      const next = new Set(prev)
+      if (next.has(stage)) next.delete(stage)
+      else next.add(stage)
+      return next
+    })
+  }
+
+  const allCollapsed = stageGroups.length > 0 && stageGroups.every(g => collapsedStages.has(g.stage))
 
   return (
     <>
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <div className="panel-title">Open Deals — Loop ERP Pipeline</div>
+            <div className="panel-sub">Click a stage row to collapse · Click deal name to open in HubSpot</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)} style={selectStyle}>
+              <option value="">All Countries</option>
+              <option value="us">US</option>
+              <option value="non-us">Non-US</option>
+            </select>
+            {countryFilter && (
+              <button
+                onClick={() => setCountryFilter('')}
+                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                Clear ×
+              </button>
+            )}
+            <button
+              onClick={() => allCollapsed ? setCollapsedStages(new Set()) : setCollapsedStages(new Set(stageGroups.map(g => g.stage)))}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}
+            >
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              {filtered.length === deals.length ? `${deals.length} deals` : `${filtered.length} of ${deals.length} deals`}
+            </span>
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <SortTh sortKey="dealname" sort={sort} onSort={toggleSort}>Deal Name</SortTh>
+                <SortTh sortKey="country" sort={sort} onSort={toggleSort}>Country</SortTh>
+                <SortTh sortKey="amount" sort={sort} onSort={toggleSort}>Amount</SortTh>
+                <SortTh sortKey="weighted" sort={sort} onSort={toggleSort}>Weighted</SortTh>
+                <SortTh sortKey="closedate" sort={sort} onSort={toggleSort}>Close Date</SortTh>
+                <SortTh sortKey="daysInStage" sort={sort} onSort={toggleSort}>Days in Stage</SortTh>
+                <SortTh sortKey="lastActivity" sort={sort} onSort={toggleSort}>Last Activity</SortTh>
+                <SortTh sortKey="notes" sort={sort} onSort={toggleSort}>Notes</SortTh>
+                <th>Next Activity</th>
+                <th>Notion</th>
+              </tr>
+            </thead>
+            {stageGroups.map(({ stage, deals: stageDeals }) => {
+              const isCollapsed = collapsedStages.has(stage)
+              const stageTotal = stageDeals.reduce((s, d) => s + parseFloat(d.properties?.amount || 0), 0)
+              return (
+                <tbody key={stage}>
+                  <tr
+                    onClick={() => toggleStage(stage)}
+                    style={{ cursor: 'pointer', background: 'var(--off-white)', userSelect: 'none' }}
+                  >
+                    <td colSpan={10} style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, borderTop: '2px solid var(--border)' }}>
+                      <span style={{ marginRight: 8, fontSize: 10, color: 'var(--text-muted)' }}>
+                        {isCollapsed ? '▶' : '▼'}
+                      </span>
+                      {stage}
+                      <span style={{ marginLeft: 12, fontWeight: 400, fontSize: 12, color: 'var(--text-muted)' }}>
+                        {stageDeals.length} deal{stageDeals.length !== 1 ? 's' : ''} · {fmtCurrency(stageTotal)}
+                      </span>
+                    </td>
+                  </tr>
+                  {!isCollapsed && stageDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
+                </tbody>
+              )
+            })}
+            {stageGroups.length === 0 && (
+              <tbody>
+                <tr>
+                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                    No deals match the current filters
+                  </td>
+                </tr>
+              </tbody>
+            )}
+          </table>
+        </div>
+      </div>
+
       <div className="kpi-row">
         <div className="kpi-card blue">
           <div className="kpi-label">Total Pipeline</div>
@@ -140,63 +256,11 @@ export default function LoopPipeline({ data, loading }) {
       <DealAnalytics
         deals={deals}
         stageMap={stageMap}
-        selectedStage={stageFilter}
-        onStageClick={s => { setStageFilter(s || ''); setCountryFilter('') }}
+        selectedStage=""
+        onStageClick={() => {}}
       />
 
       <PipelineInsights deals={deals} stageMap={stageMap} pipeline="loop" />
-
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <div className="panel-title">Open Deals — Full Pipeline View</div>
-            <div className="panel-sub">Click column headers to sort · Click deal name to open in HubSpot</div>
-          </div>
-        </div>
-
-        <FilterBar
-          count={visibleDeals.length}
-          total={deals.length}
-          hasFilters={!!(stageFilter || countryFilter)}
-          onClear={clearFilters}
-        >
-          <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={selectStyle}>
-            <option value="">All Stages</option>
-            {stageOptions.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)} style={selectStyle}>
-            <option value="">All Countries</option>
-            <option value="us">US</option>
-            <option value="non-us">Non-US</option>
-          </select>
-        </FilterBar>
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <SortTh sortKey="dealname" sort={sort} onSort={toggleSort}>Deal Name</SortTh>
-                <SortTh sortKey="stage" sort={sort} onSort={toggleSort}>Stage</SortTh>
-                <SortTh sortKey="country" sort={sort} onSort={toggleSort}>Country</SortTh>
-                <SortTh sortKey="amount" sort={sort} onSort={toggleSort}>Amount</SortTh>
-                <SortTh sortKey="weighted" sort={sort} onSort={toggleSort}>Weighted</SortTh>
-                <SortTh sortKey="closedate" sort={sort} onSort={toggleSort}>Close Date</SortTh>
-                <SortTh sortKey="daysInStage" sort={sort} onSort={toggleSort}>Days in Stage</SortTh>
-                <SortTh sortKey="lastActivity" sort={sort} onSort={toggleSort}>Last Activity</SortTh>
-                <SortTh sortKey="notes" sort={sort} onSort={toggleSort}>Notes</SortTh>
-                <th>Notion</th>
-                <th>AI Review</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleDeals.map(d => <DealRow key={d.id} deal={d} stageMap={stageMap} />)}
-              {visibleDeals.length === 0 && (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No deals match the current filters</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </>
   )
 }

@@ -64,6 +64,7 @@ export const DEAL_PROPS = [
   'dealname', 'amount', 'closedate', 'dealstage', 'pipeline',
   'hubspot_owner_id', 'hs_deal_stage_probability', 'num_notes',
   'notes_last_updated', 'notion_link', 'hs_lastmodifieddate',
+  'hs_next_activity_date', 'hs_next_activity_subject',
 ]
 
 export const CONTACT_PROPS = [

@@ -1,7 +1,7 @@
 import { hsPatch } from '../_hubspot.js'
 
 const NOTION_BASE = 'https://api.notion.com/v1'
-const DATABASE_ID = '245f8201-2f2c-806c-8e09-f9330cd5507d'
+const DATABASE_ID = '240f8201-2f2c-80f1-80d3-d7746cca32b0'
 
 function notionHeaders() {
   return {

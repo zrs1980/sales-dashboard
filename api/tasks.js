@@ -8,14 +8,28 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { dealId, subject, body, ownerId, dueDate } = req.body || {}
-  if (!dealId || !subject) return res.status(400).json({ error: 'dealId and subject are required' })
+  const { dealId, contactId, subject, body, ownerId, dueDate } = req.body || {}
+  if (!subject) return res.status(400).json({ error: 'subject is required' })
+  if (!dealId && !contactId) return res.status(400).json({ error: 'dealId or contactId is required' })
 
   try {
-    // Convert date string (YYYY-MM-DD) to noon UTC ISO string
     const dueDateIso = dueDate
       ? new Date(dueDate + 'T12:00:00.000Z').toISOString()
       : new Date().toISOString()
+
+    const associations = []
+    if (dealId) {
+      associations.push({
+        to: { id: String(dealId) },
+        types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 216 }],
+      })
+    }
+    if (contactId) {
+      associations.push({
+        to: { id: String(contactId) },
+        types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 204 }],
+      })
+    }
 
     const task = await hsPost('/crm/v3/objects/tasks', {
       properties: {
@@ -26,12 +40,7 @@ export default async function handler(req, res) {
         hs_task_status: 'NOT_STARTED',
         hs_task_type: 'TODO',
       },
-      associations: [
-        {
-          to: { id: String(dealId) },
-          types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 216 }],
-        },
-      ],
+      associations,
     })
 
     res.json({ taskId: task.id })

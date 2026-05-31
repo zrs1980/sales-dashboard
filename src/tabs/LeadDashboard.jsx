@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { fmtDate, extractNotionPageId } from '../utils.js'
 import LeadInsights from '../components/LeadInsights.jsx'
 import NotionNotes from '../components/NotionNotes.jsx'
+import CreateTaskModal from '../components/CreateTaskModal.jsx'
 
 function MultiSelect({ options, selected, onChange, placeholder }) {
   const [open, setOpen] = useState(false)
@@ -172,7 +173,7 @@ function StatusDot({ lead }) {
   return <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
 }
 
-function LeadRow({ lead, index, stageMap, pipelineMap }) {
+function LeadRow({ lead, index, stageMap, pipelineMap, onNewTask }) {
   const p = lead.properties || {}
   const id = lead.id
 
@@ -192,6 +193,11 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   const notionPageId = extractNotionPageId(p.notion_link)
 
   const url = leadUrl(id, p.hs_primary_contact_id)
+
+  const contactId = p.hs_primary_contact_id
+  const taskUrl = p.hs_next_task_id && contactId
+    ? `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-1/${contactId}?taskId=${p.hs_next_task_id}`
+    : null
 
   return (
     <tr>
@@ -219,10 +225,30 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
       <td style={{ fontSize: 12, color: lastActivity ? 'var(--text-secondary)' : 'var(--danger)' }}>
         {lastActivity || <span style={{ color: 'var(--danger)' }}>Never</span>}
       </td>
-      <td style={{ fontSize: 12 }}>
-        {nextActivity
-          ? <span style={{ color: nextActivity.color }}>{nextActivity.label}</span>
-          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+      <td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {nextActivity && (
+            <span style={{ fontSize: 12, color: nextActivity.color, fontWeight: nextActivity.color === 'var(--danger)' ? 600 : undefined }}>
+              {nextActivity.label}
+            </span>
+          )}
+          {p.hs_next_activity_subject && taskUrl ? (
+            <a href={taskUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', lineHeight: 1.3 }}>
+              {p.hs_next_activity_subject} ↗
+            </a>
+          ) : p.hs_next_activity_subject ? (
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{p.hs_next_activity_subject}</span>
+          ) : null}
+          {!nextActivity && !p.hs_next_activity_subject && (
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+          )}
+          <button
+            onClick={() => onNewTask({ id, name: company || name, contactId })}
+            style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap', alignSelf: 'flex-start', marginTop: 2 }}
+          >
+            + Task
+          </button>
+        </div>
       </td>
       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(p.hs_createdate)}</td>
       <td>
@@ -304,6 +330,7 @@ export default function LeadDashboard({ data, loading }) {
   const [sortKey, setSortKey] = useState('created')
   const [sortDir, setSortDir] = useState('desc')
   const [page, setPage] = useState(1)
+  const [taskModal, setTaskModal] = useState(null) // { id, name, contactId }
 
   const pipelines = useMemo(() => {
     const seen = new Set()
@@ -450,6 +477,13 @@ export default function LeadDashboard({ data, loading }) {
 
   return (
     <>
+      {taskModal && (
+        <CreateTaskModal
+          contactId={taskModal.contactId}
+          dealName={taskModal.name}
+          onClose={() => setTaskModal(null)}
+        />
+      )}
       <div className="kpi-row">
         <div className="kpi-card blue">
           <div className="kpi-label">Total Leads</div>
@@ -568,6 +602,7 @@ export default function LeadDashboard({ data, loading }) {
                   index={start + i + 1}
                   stageMap={stageMap}
                   pipelineMap={pipelineMap}
+                  onNewTask={setTaskModal}
                 />
               ))}
               {pageLeads.length === 0 && (

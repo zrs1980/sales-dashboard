@@ -104,6 +104,62 @@ async function fetchOpenTasksForDeals(dealIds) {
   return result
 }
 
+async function fetchOpenTasksForLeadContacts(leads) {
+  const contactIds = [...new Set(
+    leads.map(l => l.properties?.hs_primary_contact_id).filter(Boolean)
+  )]
+  if (!contactIds.length) return {}
+
+  // Step 1: batch-read contact → task associations
+  const assocData = await hsPost('/crm/v4/associations/contacts/tasks/batch/read', {
+    inputs: contactIds.map(id => ({ id: String(id) })),
+  })
+
+  const contactToTaskIds = {}
+  const taskIds = new Set()
+  for (const result of assocData.results || []) {
+    const contactId = result.from?.id
+    const linked = (result.to || []).map(t => String(t.toObjectId))
+    if (contactId && linked.length > 0) {
+      contactToTaskIds[contactId] = linked
+      linked.forEach(id => taskIds.add(id))
+    }
+  }
+
+  if (!taskIds.size) return {}
+
+  // Step 2: batch-read task properties
+  const taskData = await hsPost('/crm/v3/objects/tasks/batch/read', {
+    inputs: [...taskIds].map(id => ({ id })),
+    properties: ['hs_task_subject', 'hs_task_status', 'hs_timestamp'],
+  })
+
+  const tasks = {}
+  for (const task of taskData.results || []) {
+    tasks[task.id] = task.properties
+  }
+
+  // Step 3: per contact, pick the earliest open task
+  const OPEN = new Set(['NOT_STARTED', 'IN_PROGRESS', 'WAITING', 'DEFERRED'])
+  const result = {}
+  for (const [contactId, ids] of Object.entries(contactToTaskIds)) {
+    const open = ids
+      .filter(id => tasks[id] && OPEN.has(tasks[id].hs_task_status))
+      .map(id => ({ id, ...tasks[id] }))
+      .sort((a, b) => parseInt(a.hs_timestamp || 0) - parseInt(b.hs_timestamp || 0))
+
+    if (open.length > 0) {
+      result[contactId] = {
+        date: open[0].hs_timestamp,
+        subject: open[0].hs_task_subject || '',
+        taskId: open[0].id,
+      }
+    }
+  }
+
+  return result // contactId → { date, subject, taskId }
+}
+
 export async function fetchLoopDeals() {
   const data = await hsPost('/crm/v3/objects/deals/search', {
     filterGroups: [{
@@ -210,6 +266,23 @@ export async function fetchLeads() {
     if (!data.paging?.next?.after || results.length >= 500) break
     after = data.paging.next.after
   }
+
+  // Overlay open task data onto each lead via primary contact
+  if (results.length > 0) {
+    const taskMap = await fetchOpenTasksForLeadContacts(results)
+    for (const lead of results) {
+      const contactId = lead.properties?.hs_primary_contact_id
+      if (contactId) {
+        const task = taskMap[contactId]
+        if (task) {
+          lead.properties.hs_next_activity_date = task.date
+          lead.properties.hs_next_activity_subject = task.subject
+          lead.properties.hs_next_task_id = task.taskId
+        }
+      }
+    }
+  }
+
   return results
 }
 

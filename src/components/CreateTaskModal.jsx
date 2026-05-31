@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 
 const DEFAULT_EMAIL = 'zabe@cebasolutions.com'
 
-export default function CreateTaskModal({ dealId, dealName, onClose, onCreated }) {
+export default function CreateTaskModal({ dealId, contactId, dealName, onClose, onCreated }) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0])
@@ -33,7 +33,7 @@ export default function CreateTaskModal({ dealId, dealName, onClose, onCreated }
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealId, subject: subject.trim(), body: body.trim(), ownerId, dueDate }),
+        body: JSON.stringify({ dealId, contactId, subject: subject.trim(), body: body.trim(), ownerId, dueDate }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create task')

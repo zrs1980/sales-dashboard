@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
+export default function NotionNotes({ pageId, notionLink, dealId, dealName, createEndpoint, createPayload }) {
   const [state, setState] = useState('idle') // idle | creating | error
   const [lines, setLines] = useState([])
   const [createdUrl, setCreatedUrl] = useState(null)
@@ -17,10 +17,10 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
     async function createAccount() {
       setState('creating')
       try {
-        const res = await fetch('/api/notion/create-account', {
+        const res = await fetch(createEndpoint || '/api/notion/create-account', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dealId, dealName }),
+          body: JSON.stringify(createPayload || { dealId, dealName }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to create account')

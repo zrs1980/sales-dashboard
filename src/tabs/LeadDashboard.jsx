@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { fmtDate } from '../utils.js'
+import { fmtDate, extractNotionPageId } from '../utils.js'
 import LeadInsights from '../components/LeadInsights.jsx'
+import NotionNotes from '../components/NotionNotes.jsx'
 
 function MultiSelect({ options, selected, onChange, placeholder }) {
   const [open, setOpen] = useState(false)
@@ -188,6 +189,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
 
   const lastActivity = p.hs_last_activity_date ? fmtDate(p.hs_last_activity_date) : null
   const nextActivity = fmtNext(p.hs_next_activity_date)
+  const notionPageId = extractNotionPageId(p.notion_link)
 
   const url = leadUrl(id, p.hs_primary_contact_id)
 
@@ -223,6 +225,16 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
       </td>
       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(p.hs_createdate)}</td>
+      <td>
+        <NotionNotes
+          pageId={notionPageId}
+          notionLink={p.notion_link}
+          dealId={id}
+          dealName={name}
+          createEndpoint="/api/notion/create-lead-account"
+          createPayload={{ leadId: id, leadName: name }}
+        />
+      </td>
       <td><a className="deal-link" href={url} target="_blank" rel="noreferrer">Open →</a></td>
     </tr>
   )
@@ -544,6 +556,7 @@ export default function LeadDashboard({ data, loading }) {
                 <SortableTh col="last_active"   label="Last Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="next_activity" label="Next Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="created"       label="Created"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <th>Notion</th>
                 <th>Link</th>
               </tr>
             </thead>
@@ -559,7 +572,7 @@ export default function LeadDashboard({ data, loading }) {
               ))}
               {pageLeads.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
                     No leads match filters
                   </td>
                 </tr>

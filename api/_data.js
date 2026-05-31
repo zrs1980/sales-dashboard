@@ -189,7 +189,7 @@ const LEAD_PROPS = [
   'hs_lead_call_count', 'hs_lead_email_count', 'hs_lead_meeting_count',
   'hs_lead_outreach_activity_count',
   'hs_last_activity_date', 'hs_next_activity_date', 'hs_createdate',
-  'hs_pipeline_stage_last_updated',
+  'hs_pipeline_stage_last_updated', 'notion_link',
   'hs_lead_is_new', 'hs_lead_is_in_progress', 'hs_lead_is_open',
   'hs_lead_is_qualified', 'hs_lead_is_disqualified',
   'loop_lead_source', 'hs_lead_source',

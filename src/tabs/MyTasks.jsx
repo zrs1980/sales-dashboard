@@ -545,12 +545,9 @@ export default function MyTasks() {
               <tr>
                 <th style={{ width: 110 }}>Due Date</th>
                 <th>Subject</th>
-                <th style={{ width: 90 }}>Type</th>
-                <th style={{ width: 100 }}>Status</th>
                 <th style={{ width: 130 }}>Assignee</th>
                 <th>Contact</th>
                 <th>Company</th>
-                <th style={{ width: 120 }}>Phone</th>
                 <th style={{ width: 200 }}>Description</th>
                 <th>Lead</th>
                 <th>Deal</th>
@@ -587,10 +584,6 @@ export default function MyTasks() {
                         </div>
                       )}
                     </td>
-                    <td><TypeBadge type={p.hs_task_type} /></td>
-                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {STATUS_LABELS[p.hs_task_status] || p.hs_task_status || '—'}
-                    </td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{ownerName}</td>
                     <td>
                       {contactName ? (
@@ -606,9 +599,6 @@ export default function MyTasks() {
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                       {company?.name || <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {company?.phone || <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 200 }}>
                       {company?.description ? (
@@ -686,7 +676,7 @@ export default function MyTasks() {
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
                     No tasks match the current filters
                   </td>
                 </tr>

@@ -185,7 +185,6 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
   const calls = parseInt(p.hs_lead_call_count || p.hs_calls_attempted_count || 0)
   const emails = parseInt(p.hs_lead_email_count || 0)
   const meetings = parseInt(p.hs_lead_meeting_count || 0)
-  const totalActivities = parseInt(p.hs_lead_outreach_activity_count || 0) || (calls + emails + meetings)
 
   const lastActivity = p.hs_last_activity_date ? fmtDate(p.hs_last_activity_date) : null
   const nextActivity = fmtNext(p.hs_next_activity_date)
@@ -278,7 +277,13 @@ function getSortVal(lead, col, stageMap) {
   }
 }
 
+const ACTIVE_LOOP_STAGE_LABELS = new Set(['Discovery Ready', 'Engaged', 'Discovery Scheduled', 'Intent', 'Discovery Complete'])
+
 export default function LeadDashboard({ data, loading }) {
+  // Extract data at the top with safe defaults — must be before all hooks
+  const leads = data?.leads || []
+  const { stageMap = {}, pipelineMap = {} } = data?.stages || {}
+
   const [search, setSearch] = useState('')
   const [pipelineFilter, setPipelineFilter] = useState([])
   const [stageFilter, setStageFilter] = useState([])
@@ -288,88 +293,11 @@ export default function LeadDashboard({ data, loading }) {
   const [sortDir, setSortDir] = useState('desc')
   const [page, setPage] = useState(1)
 
-  function handlePipelineChange(next) {
-    setPipelineFilter(next)
-    // Drop any stage selections that don't belong to the newly selected pipelines
-    if (next.length > 0) {
-      const validStages = new Set(
-        leads
-          .filter(l => next.includes(l.properties?.hs_pipeline))
-          .map(l => l.properties?.hs_pipeline_stage)
-      )
-      setStageFilter(prev => prev.filter(s => validStages.has(s)))
-    }
-    setPage(1)
-  }
-
-  const ACTIVE_LOOP_STAGE_LABELS = new Set(['Discovery Ready', 'Engaged', 'Discovery Scheduled', 'Intent', 'Discovery Complete'])
-
-  function applyActiveLoopPreset() {
-    const loopPipelineId = Object.entries(pipelineMap).find(([, label]) =>
-      label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
-    )?.[0]
-    const stageIds = leads
-      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
-      .map(l => l.properties?.hs_pipeline_stage)
-      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
-    if (loopPipelineId) setPipelineFilter([loopPipelineId])
-    setStageFilter(stageIds)
-    setPage(1)
-  }
-
-  const isActiveLoopPreset = useMemo(() => {
-    const loopPipelineId = Object.entries(pipelineMap).find(([, label]) =>
-      label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
-    )?.[0]
-    if (!loopPipelineId) return false
-    if (pipelineFilter.length !== 1 || pipelineFilter[0] !== loopPipelineId) return false
-    const activeStageIds = leads
-      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
-      .map(l => l.properties?.hs_pipeline_stage)
-      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
-    return activeStageIds.length === stageFilter.length && activeStageIds.every(id => stageFilter.includes(id))
-  }, [pipelineFilter, stageFilter, pipelineMap, stageMap, leads])
-
-  function clearPreset() {
-    setPipelineFilter([])
-    setStageFilter([])
-    setPage(1)
-  }
-
-  function handleSort(col) {
-    if (sortKey === col) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortKey(col)
-      setSortDir('asc')
-    }
-    setPage(1)
-  }
-
-  if (loading && !data) return <div className="state-box">Loading leads…</div>
-  if (!data) return null
-
-  const leads = data.leads || []
-  const { stageMap = {}, pipelineMap = {} } = data.stages || {}
-
-  // KPI counts
-  const total = leads.length
-  const newCount = leads.filter(l => l.properties?.hs_lead_is_new === 'true').length
-  const inProgressCount = leads.filter(l => l.properties?.hs_lead_is_in_progress === 'true').length
-  const qualifiedCount = leads.filter(l => l.properties?.hs_lead_is_qualified === 'true').length
-  const noActivityCount = leads.filter(l => {
-    const p = l.properties || {}
-    const total = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
-    return total === 0
-  }).length
-
-  // Unique pipelines for filter
   const pipelines = useMemo(() => {
     const seen = new Set()
     return leads.map(l => l.properties?.hs_pipeline).filter(p => p && !seen.has(p) && seen.add(p))
   }, [leads])
 
-  // Stages for selected pipeline filter, with pipeline name for disambiguation
   const stagesForPipeline = useMemo(() => {
     const seenIds = new Set()
     const labelCounts = {}
@@ -377,7 +305,6 @@ export default function LeadDashboard({ data, loading }) {
       .filter(l => pipelineFilter.length === 0 || pipelineFilter.includes(l.properties?.hs_pipeline))
       .map(l => ({ stageId: l.properties?.hs_pipeline_stage, pipelineId: l.properties?.hs_pipeline }))
       .filter(({ stageId }) => stageId && !seenIds.has(stageId) && seenIds.add(stageId))
-    // count how many entries share the same stage label
     for (const { stageId } of entries) {
       const label = stageMap[stageId] || stageId
       labelCounts[label] = (labelCounts[label] || 0) + 1
@@ -431,10 +358,79 @@ export default function LeadDashboard({ data, loading }) {
     })
   }, [filtered, sortKey, sortDir, stageMap])
 
+  const loopPipelineId = useMemo(() =>
+    Object.entries(pipelineMap).find(([, label]) =>
+      label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
+    )?.[0]
+  , [pipelineMap])
+
+  const isActiveLoopPreset = useMemo(() => {
+    if (!loopPipelineId) return false
+    if (pipelineFilter.length !== 1 || pipelineFilter[0] !== loopPipelineId) return false
+    const activeStageIds = leads
+      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
+      .map(l => l.properties?.hs_pipeline_stage)
+      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
+    return activeStageIds.length === stageFilter.length && activeStageIds.every(id => stageFilter.includes(id))
+  }, [pipelineFilter, stageFilter, pipelineMap, stageMap, leads, loopPipelineId])
+
+  // All hooks done — safe to return early now
+  if (loading && !data) return <div className="state-box">Loading leads…</div>
+  if (!data) return null
+
+  const total = leads.length
+  const newCount = leads.filter(l => l.properties?.hs_lead_is_new === 'true').length
+  const inProgressCount = leads.filter(l => l.properties?.hs_lead_is_in_progress === 'true').length
+  const qualifiedCount = leads.filter(l => l.properties?.hs_lead_is_qualified === 'true').length
+  const noActivityCount = leads.filter(l => {
+    const p = l.properties || {}
+    const t = parseInt(p.hs_lead_outreach_activity_count || 0) || (parseInt(p.hs_lead_call_count || 0) + parseInt(p.hs_lead_email_count || 0) + parseInt(p.hs_lead_meeting_count || 0))
+    return t === 0
+  }).length
+
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const start = (safePage - 1) * PAGE_SIZE
   const pageLeads = sorted.slice(start, start + PAGE_SIZE)
+
+  function handlePipelineChange(next) {
+    setPipelineFilter(next)
+    if (next.length > 0) {
+      const validStages = new Set(
+        leads
+          .filter(l => next.includes(l.properties?.hs_pipeline))
+          .map(l => l.properties?.hs_pipeline_stage)
+      )
+      setStageFilter(prev => prev.filter(s => validStages.has(s)))
+    }
+    setPage(1)
+  }
+
+  function applyActiveLoopPreset() {
+    const stageIds = leads
+      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
+      .map(l => l.properties?.hs_pipeline_stage)
+      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
+    if (loopPipelineId) setPipelineFilter([loopPipelineId])
+    setStageFilter(stageIds)
+    setPage(1)
+  }
+
+  function clearPreset() {
+    setPipelineFilter([])
+    setStageFilter([])
+    setPage(1)
+  }
+
+  function handleSort(col) {
+    if (sortKey === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(col)
+      setSortDir('asc')
+    }
+    setPage(1)
+  }
 
   function handleFilterChange(setter) {
     return (e) => { setter(e.target.value); setPage(1) }
@@ -505,7 +501,7 @@ export default function LeadDashboard({ data, loading }) {
             placeholder="All Pipelines"
             options={pipelines.map(pid => ({
               value: pid,
-              label: pipelineMap[pid] || (pid === 'lead-pipeline-id' ? 'Loop SQL' : pid),
+              label: pipelineMap[pid] || pid,
             }))}
             selected={pipelineFilter}
             onChange={handlePipelineChange}
@@ -540,14 +536,14 @@ export default function LeadDashboard({ data, loading }) {
             <thead>
               <tr>
                 <th>#</th>
-                <SortableTh col="name"          label="Name"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortableTh col="company"       label="Company"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="name"          label="Name"             sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="company"       label="Company"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="stage"         label="Pipeline / Stage" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortableTh col="label"         label="Label"         sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="label"         label="Label"            sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Activity</th>
-                <SortableTh col="last_active"   label="Last Activity Date" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortableTh col="next_activity" label="Next Activity" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortableTh col="created"       label="Created"       sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="last_active"   label="Last Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="next_activity" label="Next Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableTh col="created"       label="Created"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th>Link</th>
               </tr>
             </thead>

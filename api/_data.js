@@ -187,7 +187,7 @@ async function fetchOpenTasksForDeals(dealIds) {
     const open = ids
       .filter(id => tasks[id] && OPEN.has(tasks[id].hs_task_status))
       .map(id => ({ id, ...tasks[id] }))
-      .sort((a, b) => parseInt(a.hs_timestamp || 0) - parseInt(b.hs_timestamp || 0))
+      .sort((a, b) => new Date(a.hs_timestamp || 0).getTime() - new Date(b.hs_timestamp || 0).getTime())
 
     if (open.length > 0) {
       result[dealId] = {
@@ -238,7 +238,7 @@ async function fetchOpenTasksForLeadContacts(leads) {
     const open = ids
       .filter(id => tasks[id] && OPEN.has(tasks[id].hs_task_status))
       .map(id => ({ id, ...tasks[id] }))
-      .sort((a, b) => parseInt(a.hs_timestamp || 0) - parseInt(b.hs_timestamp || 0))
+      .sort((a, b) => new Date(a.hs_timestamp || 0).getTime() - new Date(b.hs_timestamp || 0).getTime())
 
     if (open.length > 0) {
       result[contactId] = {

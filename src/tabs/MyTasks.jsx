@@ -4,6 +4,14 @@ import { fmtDate } from '../utils.js'
 const PORTAL_ID = '243159630'
 const DEFAULT_EMAIL = 'zabe@cebasolutions.com'
 
+// HubSpot returns hs_timestamp as ISO string; handle both ISO and epoch-ms safely
+function parseTs(ts) {
+  if (!ts) return null
+  const n = Number(ts)
+  const d = !isNaN(n) && n > 1e10 ? new Date(n) : new Date(ts)
+  return isNaN(d.getTime()) ? null : d
+}
+
 const TYPE_LABELS = {
   CALL: 'Call',
   EMAIL: 'Email',
@@ -54,8 +62,8 @@ function PriorityBadge({ priority }) {
 
 function DueDateCell({ ts }) {
   if (!ts) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
-  const d = new Date(parseInt(ts))
-  if (isNaN(d.getTime())) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+  const d = parseTs(ts)
+  if (!d) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
   const now = new Date()
   const diffDays = Math.round((d - now) / 86400000)
   let color = 'var(--text-secondary)'
@@ -98,10 +106,9 @@ function taskHsUrl(task) {
 
 function taskDueDays(ts) {
   if (!ts) return null
-  const d = new Date(parseInt(ts))
-  if (isNaN(d.getTime())) return null
-  const now = new Date()
-  return Math.round((d - now) / 86400000)
+  const d = parseTs(ts)
+  if (!d) return null
+  return Math.round((d - new Date()) / 86400000)
 }
 
 export default function MyTasks() {
@@ -173,8 +180,7 @@ export default function MyTasks() {
       if (ownerFilter && p.hubspot_owner_id !== ownerFilter) return false
       if (typeFilter && p.hs_task_type !== typeFilter) return false
 
-      const ts = p.hs_timestamp ? parseInt(p.hs_timestamp) : null
-      const dueDate = ts ? new Date(ts) : null
+      const dueDate = parseTs(p.hs_timestamp)
 
       if (datePreset === 'overdue') {
         if (!dueDate || dueDate >= todayStart) return false
@@ -191,11 +197,8 @@ export default function MyTasks() {
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      const at = parseInt(a.properties?.hs_timestamp || 0)
-      const bt = parseInt(b.properties?.hs_timestamp || 0)
-      if (!at && !bt) return 0
-      if (!at) return 1
-      if (!bt) return -1
+      const at = parseTs(a.properties?.hs_timestamp)?.getTime() ?? Infinity
+      const bt = parseTs(b.properties?.hs_timestamp)?.getTime() ?? Infinity
       return at - bt
     })
   }, [filtered])

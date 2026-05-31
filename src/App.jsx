@@ -5,6 +5,7 @@ import CebaServicesPipeline from './tabs/CebaServicesPipeline.jsx'
 import SdrActivities from './tabs/SdrActivities.jsx'
 import SalesMeetings from './tabs/SalesMeetings.jsx'
 import LeadDashboard from './tabs/LeadDashboard.jsx'
+import MyTasks from './tabs/MyTasks.jsx'
 
 const TABS = [
   { id: 'loop',     label: 'Loop ERP Pipeline' },
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'sdr',      label: 'SDR Activities' },
   { id: 'meetings', label: 'Sales Meetings' },
   { id: 'leads',    label: 'Lead Dashboard' },
+  { id: 'tasks',    label: 'My Tasks' },
 ]
 
 export default function App() {
@@ -93,16 +95,20 @@ export default function App() {
 
       {!error && !data && !loading && null}
 
-      {(data || loading) && (
-        <div className="content">
-          {activeTab === 'loop' && <LoopPipeline data={data?.loop} loading={loading} />}
-          {activeTab === 'ceba' && <CebaPipeline data={data?.ceba} loading={loading} />}
-          {activeTab === 'cebaServices' && <CebaServicesPipeline data={data?.cebaServices} loading={loading} />}
-          {activeTab === 'sdr'      && <SdrActivities data={data?.sdr}      loading={loading} />}
-          {activeTab === 'meetings' && <SalesMeetings data={data?.sdr}      loading={loading} />}
-          {activeTab === 'leads'    && <LeadDashboard data={data?.leads}    loading={loading} />}
-        </div>
-      )}
+      <div className="content" style={{ display: activeTab === 'tasks' ? 'block' : undefined }}>
+        {activeTab === 'tasks' ? (
+          <MyTasks />
+        ) : (data || loading) ? (
+          <>
+            {activeTab === 'loop' && <LoopPipeline data={data?.loop} loading={loading} />}
+            {activeTab === 'ceba' && <CebaPipeline data={data?.ceba} loading={loading} />}
+            {activeTab === 'cebaServices' && <CebaServicesPipeline data={data?.cebaServices} loading={loading} />}
+            {activeTab === 'sdr'      && <SdrActivities data={data?.sdr}      loading={loading} />}
+            {activeTab === 'meetings' && <SalesMeetings data={data?.sdr}      loading={loading} />}
+            {activeTab === 'leads'    && <LeadDashboard data={data?.leads}    loading={loading} />}
+          </>
+        ) : null}
+      </div>
     </>
   )
 }

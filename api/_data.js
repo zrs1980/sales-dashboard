@@ -7,6 +7,90 @@ function chunk(arr, size) {
   return out
 }
 
+async function batchReadProps(objectType, ids, properties) {
+  if (!ids.size) return {}
+  const map = {}
+  for (const batch of chunk([...ids], 100)) {
+    const data = await hsPost(`/crm/v3/objects/${objectType}/batch/read`, {
+      inputs: batch.map(id => ({ id })),
+      properties,
+    })
+    for (const item of data.results || []) map[item.id] = item.properties
+  }
+  return map
+}
+
+async function batchAssocChunked(fromType, toType, ids) {
+  const map = {}
+  for (const batch of chunk(ids, 100)) {
+    const data = await hsPost(`/crm/v4/associations/${fromType}/${toType}/batch/read`, {
+      inputs: batch.map(id => ({ id })),
+    }).catch(() => ({ results: [] }))
+    for (const result of data.results || []) {
+      const fromId = result.from?.id
+      const toIds = (result.to || []).map(t => String(t.toObjectId))
+      if (fromId && toIds.length) map[fromId] = (map[fromId] || []).concat(toIds)
+    }
+  }
+  return map
+}
+
+export async function fetchMyTasks() {
+  const OPEN_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'WAITING', 'DEFERRED']
+  const results = []
+  let after = undefined
+  while (true) {
+    const data = await hsPost('/crm/v3/objects/tasks/search', {
+      filterGroups: OPEN_STATUSES.map(s => ({
+        filters: [{ propertyName: 'hs_task_status', operator: 'EQ', value: s }],
+      })),
+      properties: [
+        'hs_task_subject', 'hs_task_body', 'hs_task_status', 'hs_task_type',
+        'hs_timestamp', 'hubspot_owner_id', 'hs_task_priority',
+      ],
+      sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
+      limit: 100,
+      ...(after ? { after } : {}),
+    })
+    results.push(...(data.results || []))
+    if (!data.paging?.next?.after || results.length >= 500) break
+    after = data.paging.next.after
+  }
+
+  if (!results.length) return []
+
+  const taskIds = results.map(t => t.id)
+
+  // Fetch associations in parallel
+  const [contactAssoc, dealAssoc, companyAssoc] = await Promise.all([
+    batchAssocChunked('tasks', 'contacts', taskIds),
+    batchAssocChunked('tasks', 'deals', taskIds),
+    batchAssocChunked('tasks', 'companies', taskIds),
+  ])
+
+  // Collect unique object IDs
+  const contactIds = new Set(Object.values(contactAssoc).flat())
+  const dealIds    = new Set(Object.values(dealAssoc).flat())
+  const companyIds = new Set(Object.values(companyAssoc).flat())
+
+  // Batch-read names in parallel
+  const [contacts, deals, companies] = await Promise.all([
+    batchReadProps('contacts', contactIds, ['firstname', 'lastname', 'email']),
+    batchReadProps('deals',    dealIds,    ['dealname']),
+    batchReadProps('companies', companyIds, ['name']),
+  ])
+
+  return results.map(task => {
+    const tid = task.id
+    return {
+      ...task,
+      contacts:  (contactAssoc[tid] || []).map(id => ({ id, ...(contacts[id]  || {}) })).filter(c => c.firstname || c.lastname || c.email),
+      deals:     (dealAssoc[tid]    || []).map(id => ({ id, ...(deals[id]     || {}) })).filter(d => d.dealname),
+      companies: (companyAssoc[tid] || []).map(id => ({ id, ...(companies[id] || {}) })).filter(c => c.name),
+    }
+  })
+}
+
 async function batchReadTasks(taskIds) {
   const results = []
   for (const batch of chunk([...taskIds], 100)) {

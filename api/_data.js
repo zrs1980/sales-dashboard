@@ -51,6 +51,58 @@ export async function fetchDealCountries(dealIds) {
   return result
 }
 
+async function fetchOpenTasksForDeals(dealIds) {
+  if (!dealIds.length) return {}
+
+  // Step 1: batch-read deal → task associations
+  const assocData = await hsPost('/crm/v4/associations/deals/tasks/batch/read', {
+    inputs: dealIds.map(id => ({ id: String(id) })),
+  })
+
+  const dealToTaskIds = {}
+  const taskIds = new Set()
+  for (const result of assocData.results || []) {
+    const dealId = result.from?.id
+    const linked = (result.to || []).map(t => String(t.toObjectId))
+    if (dealId && linked.length > 0) {
+      dealToTaskIds[dealId] = linked
+      linked.forEach(id => taskIds.add(id))
+    }
+  }
+
+  if (!taskIds.size) return {}
+
+  // Step 2: batch-read task properties
+  const taskData = await hsPost('/crm/v3/objects/tasks/batch/read', {
+    inputs: [...taskIds].map(id => ({ id })),
+    properties: ['hs_task_subject', 'hs_task_status', 'hs_timestamp'],
+  })
+
+  const tasks = {}
+  for (const task of taskData.results || []) {
+    tasks[task.id] = task.properties
+  }
+
+  // Step 3: per deal, pick the earliest open task
+  const OPEN = new Set(['NOT_STARTED', 'IN_PROGRESS', 'WAITING', 'DEFERRED'])
+  const result = {}
+  for (const [dealId, ids] of Object.entries(dealToTaskIds)) {
+    const open = ids
+      .map(id => tasks[id])
+      .filter(t => t && OPEN.has(t.hs_task_status))
+      .sort((a, b) => parseInt(a.hs_timestamp || 0) - parseInt(b.hs_timestamp || 0))
+
+    if (open.length > 0) {
+      result[dealId] = {
+        date: open[0].hs_timestamp,
+        subject: open[0].hs_task_subject || '',
+      }
+    }
+  }
+
+  return result
+}
+
 export async function fetchLoopDeals() {
   const data = await hsPost('/crm/v3/objects/deals/search', {
     filterGroups: [{
@@ -64,7 +116,22 @@ export async function fetchLoopDeals() {
     properties: DEAL_PROPS,
     limit: 100,
   })
-  return data.results || []
+
+  const deals = data.results || []
+
+  // Overlay open task data onto each deal
+  if (deals.length > 0) {
+    const taskMap = await fetchOpenTasksForDeals(deals.map(d => d.id))
+    for (const deal of deals) {
+      const task = taskMap[deal.id]
+      if (task) {
+        deal.properties.hs_next_activity_date = task.date
+        deal.properties.hs_next_activity_subject = task.subject
+      }
+    }
+  }
+
+  return deals
 }
 
 export async function fetchCebaStages() {

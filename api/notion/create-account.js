@@ -63,7 +63,7 @@ export default async function handler(req, res) {
           select: { name: 'Prospect' },
         },
         'Company': {
-          rich_text: [{ type: 'text', text: { content: 'Loop ERP' } }],
+          multi_select: [{ name: 'Loop ERP' }],
         },
       },
     })

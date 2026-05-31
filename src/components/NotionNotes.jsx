@@ -5,9 +5,6 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
   const [lines, setLines] = useState([])
   const [open, setOpen] = useState(false)
   const [createdUrl, setCreatedUrl] = useState(null)
-  const [meetingState, setMeetingState] = useState('idle') // idle | loading | error
-  const [meetingError, setMeetingError] = useState(null)
-
   const effectiveLink = createdUrl || notionLink
   const effectivePageId = createdUrl
     ? createdUrl.match(/([a-f0-9]{32})/)?.[1]
@@ -83,25 +80,6 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
     }
   }
 
-  async function recordMeeting() {
-    setMeetingState('loading')
-    setMeetingError(null)
-    try {
-      const res = await fetch('/api/notion/new-meeting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notionLink: effectiveLink }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create meeting')
-      window.open(data.meetingUrl, '_blank', 'noreferrer')
-      setMeetingState('idle')
-    } catch (e) {
-      setMeetingError(e.message)
-      setMeetingState('error')
-    }
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -121,32 +99,6 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
           </button>
         )}
       </div>
-      {effectiveLink && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <button
-            className="notion-toggle"
-            onClick={recordMeeting}
-            disabled={meetingState === 'loading'}
-            style={{
-              background: 'var(--success)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: meetingState === 'loading' ? 'wait' : 'pointer',
-              opacity: meetingState === 'loading' ? 0.7 : 1,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {meetingState === 'loading' ? 'Creating…' : '🎙 Record Meeting'}
-          </button>
-          {meetingState === 'error' && (
-            <span style={{ fontSize: 10, color: 'var(--danger)' }}>{meetingError}</span>
-          )}
-        </div>
-      )}
       {open && state === 'loaded' && lines.length > 0 && (
         <div className="notion-notes">
           {lines.map((line, i) => <div key={i}>{line}</div>)}

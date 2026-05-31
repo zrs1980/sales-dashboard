@@ -32,14 +32,71 @@ function RiskFlag({ days }) {
   return <span className="risk-flag risk-green">🟢 {days}d</span>
 }
 
-function CloseDate({ raw }) {
-  if (!raw) return <span>—</span>
-  const until = daysUntil(raw)
-  const label = fmtDate(raw)
-  if (until != null && until <= 30) {
-    return <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{label} ⚠</span>
+function CloseDate({ raw, dealId }) {
+  const toInputVal = v => {
+    if (!v) return ''
+    const s = String(v)
+    const d = /^\d+$/.test(s) ? new Date(parseInt(s)) : new Date(s)
+    return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0]
   }
-  return <span>{label}</span>
+
+  const [editing, setEditing] = useState(false)
+  const [inputVal, setInputVal] = useState(() => toInputVal(raw))
+  const [displayRaw, setDisplayRaw] = useState(raw)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+  async function save() {
+    if (!inputVal) { setEditing(false); return }
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const ms = String(new Date(inputVal + 'T00:00:00.000Z').getTime())
+      const res = await fetch('/api/deals/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId, properties: { closedate: ms } }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to save')
+      }
+      setDisplayRaw(inputVal)
+    } catch (e) {
+      setSaveError(e.message)
+    } finally {
+      setSaving(false)
+      setEditing(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        value={inputVal}
+        autoFocus
+        onChange={e => setInputVal(e.target.value)}
+        onBlur={save}
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        style={{ fontSize: 12, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--accent)', width: 120 }}
+      />
+    )
+  }
+
+  const until = daysUntil(displayRaw)
+  const label = fmtDate(displayRaw)
+  const urgent = until != null && until <= 30
+
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      title={saveError || 'Click to edit'}
+      style={{ cursor: 'pointer', color: saveError ? 'var(--danger)' : urgent ? 'var(--danger)' : undefined, fontWeight: urgent ? 600 : undefined, borderBottom: '1px dashed var(--border)' }}
+    >
+      {saving ? '…' : label}{urgent && !saving ? ' ⚠' : ''}
+    </span>
+  )
 }
 
 function NextActivity({ date, subject, taskId, dealId }) {
@@ -93,7 +150,7 @@ function DealRow({ deal, stageMap, onNewTask }) {
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{p.company_country || '—'}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(amount)}</td>
       <td style={{ fontFamily: "'DM Mono', monospace" }}>{fmtCurrency(weighted)}</td>
-      <td><CloseDate raw={p.closedate} /></td>
+      <td><CloseDate raw={p.closedate} dealId={id} /></td>
       <td><RiskFlag days={daysInStage} /></td>
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>

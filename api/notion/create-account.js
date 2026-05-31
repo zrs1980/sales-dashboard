@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Create new page in the CEBA Only Account Database
+    // 1. Create the account page in the CEBA Only Account Database
     const newPage = await notionPost('/pages', {
       parent: { database_id: DATABASE_ID },
       properties: {
@@ -51,7 +51,41 @@ export default async function handler(req, res) {
       },
     })
 
+    const newPageId = newPage.id
     const notionUrl = newPage.url
+
+    // 2. Create child databases matching the template structure (run in parallel)
+    await Promise.all([
+      // Sales Meeting Notes — full-page database with meeting tracking schema
+      notionPost('/databases', {
+        parent: { type: 'page_id', page_id: newPageId },
+        title: [{ type: 'text', text: { content: 'Sales Meeting Notes' } }],
+        is_inline: false,
+        properties: {
+          'Meeting Name': { title: {} },
+          'Meeting Date': { date: {} },
+          'Select': {
+            select: {
+              options: [
+                { name: 'External', color: 'red' },
+                { name: 'Internal', color: 'green' },
+              ],
+            },
+          },
+          'Text': { rich_text: {} },
+        },
+      }),
+
+      // Documents — inline database
+      notionPost('/databases', {
+        parent: { type: 'page_id', page_id: newPageId },
+        title: [{ type: 'text', text: { content: 'Documents' } }],
+        is_inline: true,
+        properties: {
+          'Name': { title: {} },
+        },
+      }),
+    ])
 
     // 3. Write the Notion link back to the HubSpot deal
     await hsPatch(`/crm/v3/objects/deals/${dealId}`, {

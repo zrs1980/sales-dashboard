@@ -93,6 +93,7 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
         body: JSON.stringify({ notionLink: effectiveLink }),
       })
       const data = await res.json()
+      console.log('[new-meeting response]', JSON.stringify(data, null, 2))
       if (!res.ok) throw new Error(data.error || 'Failed to create meeting')
       window.open(data.meetingUrl, '_blank', 'noreferrer')
       setMeetingState('idle')

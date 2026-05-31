@@ -90,15 +90,17 @@ export default async function handler(req, res) {
     })
 
     // 3. Append an AI Meeting Notes block directly to the page
+    let blockError = null
+    let blockResult = null
     try {
-      await notionPatch(`/blocks/${newMeeting.id}/children`, {
+      blockResult = await notionPatch(`/blocks/${newMeeting.id}/children`, {
         children: [{ type: 'meeting_notes', meeting_notes: {} }],
       })
-    } catch {
-      // meeting_notes block not accepted — page still opens fine
+    } catch (e) {
+      blockError = e.message
     }
 
-    res.json({ meetingUrl: newMeeting.url })
+    res.json({ meetingUrl: newMeeting.url, blockError, blockResult })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

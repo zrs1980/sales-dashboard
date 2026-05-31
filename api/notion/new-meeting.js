@@ -30,6 +30,19 @@ async function notionPost(path, body) {
   return res.json()
 }
 
+async function notionPatch(path, body) {
+  const res = await fetch(`${NOTION_BASE}${path}`, {
+    method: 'PATCH',
+    headers: notionHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Notion PATCH ${path} → ${res.status}`)
+  }
+  return res.json()
+}
+
 function extractPageId(url) {
   const match = (url || '').match(/([a-f0-9]{32})/)
   if (!match) return null
@@ -75,6 +88,37 @@ export default async function handler(req, res) {
         },
       },
     })
+
+    // 3. Append a "New Meeting Recording" button block that inserts an AI Meeting Notes
+    //    block below it when clicked. Wrapped in try/catch — page opens regardless.
+    try {
+      await notionPatch(`/blocks/${newMeeting.id}/children`, {
+        children: [
+          {
+            type: 'button',
+            button: {
+              rich_text: [
+                { type: 'text', text: { content: '🎙 New Meeting Recording' } },
+              ],
+              color: 'red',
+              actions: [
+                {
+                  type: 'insert_below',
+                  insert_below: {
+                    content: {
+                      type: 'ai_block',
+                      ai_block: {},
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    } catch {
+      // Button block format not accepted — page still opens, user can add manually
+    }
 
     res.json({ meetingUrl: newMeeting.url })
   } catch (e) {

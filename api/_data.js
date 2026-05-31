@@ -1,6 +1,24 @@
 // Pure data-fetching functions, no HTTP response handling
 import { hsGet, hsPost, DEAL_PROPS, LOOP_PIPELINE, CEBA_PIPELINE, CEBA_SERVICES_PIPELINE, LOOP_CLOSED_STAGES, RYAN_OWNER_ID, CALEB_OWNER_ID } from './_hubspot.js'
 
+function chunk(arr, size) {
+  const out = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+async function batchReadTasks(taskIds) {
+  const results = []
+  for (const batch of chunk([...taskIds], 100)) {
+    const data = await hsPost('/crm/v3/objects/tasks/batch/read', {
+      inputs: batch.map(id => ({ id })),
+      properties: ['hs_task_subject', 'hs_task_status', 'hs_timestamp'],
+    })
+    results.push(...(data.results || []))
+  }
+  return results
+}
+
 export async function fetchLoopStages() {
   const data = await hsGet(`/crm/v3/pipelines/deals/${LOOP_PIPELINE}/stages`)
   const map = {}
@@ -72,14 +90,9 @@ async function fetchOpenTasksForDeals(dealIds) {
 
   if (!taskIds.size) return {}
 
-  // Step 2: batch-read task properties
-  const taskData = await hsPost('/crm/v3/objects/tasks/batch/read', {
-    inputs: [...taskIds].map(id => ({ id })),
-    properties: ['hs_task_subject', 'hs_task_status', 'hs_timestamp'],
-  })
-
+  // Step 2: batch-read task properties (chunked, max 100 per request)
   const tasks = {}
-  for (const task of taskData.results || []) {
+  for (const task of await batchReadTasks(taskIds)) {
     tasks[task.id] = task.properties
   }
 
@@ -128,14 +141,9 @@ async function fetchOpenTasksForLeadContacts(leads) {
 
   if (!taskIds.size) return {}
 
-  // Step 2: batch-read task properties
-  const taskData = await hsPost('/crm/v3/objects/tasks/batch/read', {
-    inputs: [...taskIds].map(id => ({ id })),
-    properties: ['hs_task_subject', 'hs_task_status', 'hs_timestamp'],
-  })
-
+  // Step 2: batch-read task properties (chunked, max 100 per request)
   const tasks = {}
-  for (const task of taskData.results || []) {
+  for (const task of await batchReadTasks(taskIds)) {
     tasks[task.id] = task.properties
   }
 

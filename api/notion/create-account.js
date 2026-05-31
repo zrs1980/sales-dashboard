@@ -48,12 +48,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Fetch template block children to copy structure
-    const blocksData = await notionGet(`/blocks/${TEMPLATE_PAGE_ID}/children?page_size=100`)
-    const children = (blocksData.results || []).map(block => {
-      const { type } = block
-      return { type, [type]: block[type] }
-    }).filter(b => b[b.type] !== undefined)
+    // 1. Try to fetch template block children; fall back to blank page if inaccessible
+    let children = []
+    try {
+      const blocksData = await notionGet(`/blocks/${TEMPLATE_PAGE_ID}/children?page_size=100`)
+      children = (blocksData.results || []).map(block => {
+        const { type } = block
+        return { type, [type]: block[type] }
+      }).filter(b => b[b.type] !== undefined)
+    } catch {
+      // Template not shared with integration — create blank page
+    }
 
     // 2. Create new page in the CEBA Only Account Database
     const newPage = await notionPost('/pages', {

@@ -36,27 +36,54 @@ async function batchAssocChunked(fromType, toType, ids) {
 }
 
 export async function fetchMyTasks() {
-  const results = []
-  let after = undefined
-  while (true) {
-    const data = await hsPost('/crm/v3/objects/tasks/search', {
-      filterGroups: [{
-        filters: [
-          { propertyName: 'hs_task_status', operator: 'NEQ', value: 'COMPLETED' },
-          { propertyName: 'hs_task_status', operator: 'NEQ', value: 'CANCELED' },
-        ],
-      }],
-      properties: [
-        'hs_task_subject', 'hs_task_body', 'hs_task_status', 'hs_task_type',
-        'hs_timestamp', 'hubspot_owner_id', 'hs_task_priority',
-      ],
+  const TASK_PROPS = [
+    'hs_task_subject', 'hs_task_body', 'hs_task_status', 'hs_task_type',
+    'hs_timestamp', 'hubspot_owner_id', 'hs_task_priority',
+  ]
+  const OPEN_FILTERS = [
+    { propertyName: 'hs_task_status', operator: 'NEQ', value: 'COMPLETED' },
+    { propertyName: 'hs_task_status', operator: 'NEQ', value: 'CANCELED' },
+  ]
+
+  // HubSpot task search applies an implicit past-only window, so we make two
+  // parallel queries — one for past/current and one explicitly for future dates
+  // — then deduplicate the combined results.
+  async function searchPage(tsFilter, after) {
+    return hsPost('/crm/v3/objects/tasks/search', {
+      filterGroups: [{ filters: tsFilter ? [...OPEN_FILTERS, tsFilter] : OPEN_FILTERS }],
+      properties: TASK_PROPS,
       sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
       limit: 100,
       ...(after ? { after } : {}),
     })
-    results.push(...(data.results || []))
-    if (!data.paging?.next?.after || results.length >= 500) break
-    after = data.paging.next.after
+  }
+
+  const nowMs = String(Date.now())
+  const pastFilter   = { propertyName: 'hs_timestamp', operator: 'LTE', value: nowMs }
+  const futureFilter = { propertyName: 'hs_timestamp', operator: 'GT',  value: nowMs }
+
+  async function paginate(tsFilter) {
+    const acc = []
+    let after = undefined
+    while (true) {
+      const data = await searchPage(tsFilter, after)
+      acc.push(...(data.results || []))
+      if (!data.paging?.next?.after || acc.length >= 250) break
+      after = data.paging.next.after
+    }
+    return acc
+  }
+
+  const [pastResults, futureResults] = await Promise.all([
+    paginate(pastFilter),
+    paginate(futureFilter),
+  ])
+
+  // Deduplicate by id
+  const seen = new Set()
+  const results = []
+  for (const t of [...pastResults, ...futureResults]) {
+    if (!seen.has(t.id)) { seen.add(t.id); results.push(t) }
   }
 
   if (!results.length) return []

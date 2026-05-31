@@ -89,8 +89,8 @@ export default async function handler(req, res) {
       },
     })
 
-    // 3. Append a "New Meeting Recording" button block that inserts an AI Meeting Notes
-    //    block below it when clicked. Wrapped in try/catch — page opens regardless.
+    // 3. Append a "New Meeting Recording" button block
+    let buttonError = null
     try {
       await notionPatch(`/blocks/${newMeeting.id}/children`, {
         children: [
@@ -116,11 +116,11 @@ export default async function handler(req, res) {
           },
         ],
       })
-    } catch {
-      // Button block format not accepted — page still opens, user can add manually
+    } catch (e) {
+      buttonError = e.message
     }
 
-    res.json({ meetingUrl: newMeeting.url })
+    res.json({ meetingUrl: newMeeting.url, buttonError })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

@@ -64,22 +64,25 @@ export async function fetchMyTasks() {
   const taskIds = results.map(t => t.id)
 
   // Fetch associations in parallel
-  const [contactAssoc, dealAssoc, companyAssoc] = await Promise.all([
+  const [contactAssoc, dealAssoc, companyAssoc, leadAssoc] = await Promise.all([
     batchAssocChunked('tasks', 'contacts', taskIds),
     batchAssocChunked('tasks', 'deals', taskIds),
     batchAssocChunked('tasks', 'companies', taskIds),
+    batchAssocChunked('tasks', 'leads', taskIds),
   ])
 
   // Collect unique object IDs
   const contactIds = new Set(Object.values(contactAssoc).flat())
   const dealIds    = new Set(Object.values(dealAssoc).flat())
   const companyIds = new Set(Object.values(companyAssoc).flat())
+  const leadIds    = new Set(Object.values(leadAssoc).flat())
 
   // Batch-read names in parallel
-  const [contacts, deals, companies] = await Promise.all([
+  const [contacts, deals, companies, leads] = await Promise.all([
     batchReadProps('contacts', contactIds, ['firstname', 'lastname', 'email']),
     batchReadProps('deals',    dealIds,    ['dealname']),
     batchReadProps('companies', companyIds, ['name', 'phone', 'description']),
+    batchReadProps('leads',    leadIds,    ['hs_lead_name', 'hs_associated_company_name']),
   ])
 
   return results.map(task => {
@@ -89,6 +92,7 @@ export async function fetchMyTasks() {
       contacts:  (contactAssoc[tid] || []).map(id => ({ id, ...(contacts[id]  || {}) })).filter(c => c.firstname || c.lastname || c.email),
       deals:     (dealAssoc[tid]    || []).map(id => ({ id, ...(deals[id]     || {}) })).filter(d => d.dealname),
       companies: (companyAssoc[tid] || []).map(id => ({ id, ...(companies[id] || {}) })).filter(c => c.name),
+      leads:     (leadAssoc[tid]    || []).map(id => ({ id, ...(leads[id]     || {}) })).filter(l => l.hs_lead_name || l.hs_associated_company_name),
     }
   })
 }

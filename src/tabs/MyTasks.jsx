@@ -552,6 +552,7 @@ export default function MyTasks() {
                 <th>Company</th>
                 <th style={{ width: 120 }}>Phone</th>
                 <th style={{ width: 200 }}>Description</th>
+                <th>Lead</th>
                 <th>Deal</th>
                 <th style={{ width: 120 }}>Actions</th>
               </tr>
@@ -567,6 +568,10 @@ export default function MyTasks() {
                   : null
                 const company = task.companies?.[0]
                 const deal = task.deals?.[0]
+                const lead = task.leads?.[0]
+                const leadName = lead
+                  ? lead.hs_lead_name || lead.hs_associated_company_name || `Lead #${lead.id}`
+                  : null
 
                 return (
                   <tr key={task.id}>
@@ -610,6 +615,21 @@ export default function MyTasks() {
                         <span title={company.description} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {company.description}
                         </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12 }}>
+                      {leadName ? (
+                        <a
+                          href={`https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-136/${lead.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="deal-link"
+                          style={{ fontSize: 12 }}
+                        >
+                          {leadName}
+                        </a>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
                       )}
@@ -666,7 +686,7 @@ export default function MyTasks() {
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
+                  <td colSpan={12} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
                     No tasks match the current filters
                   </td>
                 </tr>

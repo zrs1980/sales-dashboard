@@ -94,6 +94,165 @@ function DueDateCell({ ts }) {
   )
 }
 
+function EditableDueDate({ taskId, ts, onUpdated }) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [localTs, setLocalTs] = useState(ts)
+  const [inputVal, setInputVal] = useState(() => {
+    const d = parseTs(ts)
+    return d ? d.toISOString().split('T')[0] : ''
+  })
+
+  async function save() {
+    if (!inputVal) { setEditing(false); return }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, dueDate: inputVal }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to update')
+      }
+      const newIso = new Date(inputVal + 'T12:00:00.000Z').toISOString()
+      setLocalTs(newIso)
+      onUpdated?.(taskId, newIso)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setSaving(false)
+      setEditing(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        value={inputVal}
+        autoFocus
+        onChange={e => setInputVal(e.target.value)}
+        onBlur={save}
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        style={{ fontSize: 12, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--accent)', width: 120 }}
+      />
+    )
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      title="Click to edit due date"
+      style={{ cursor: 'pointer' }}
+    >
+      <DueDateCell ts={localTs} />
+      {saving && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Saving…</div>}
+    </div>
+  )
+}
+
+function NewTaskModal({ owners, defaultOwnerId, onClose, onCreated }) {
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0])
+  const [ownerId, setOwnerId] = useState(defaultOwnerId || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!subject.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: subject.trim(), body: body.trim(), ownerId, dueDate }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create task')
+      onCreated?.()
+      onClose()
+    } catch (e) {
+      setError(e.message)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+    >
+      <div style={{ background: 'var(--white)', borderRadius: 10, padding: 28, width: 500, maxWidth: '92vw', boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>New Task</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-muted)', lineHeight: 1, padding: 0 }}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>Subject *</label>
+            <input
+              autoFocus
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              placeholder="Task subject"
+              required
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>Description</label>
+            <textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Optional notes"
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>Due Date</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>Assignee</label>
+              <select
+                value={ownerId}
+                onChange={e => setOwnerId(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--white)' }}
+              >
+                <option value="">Unassigned</option>
+                {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {error && <div style={{ fontSize: 12, color: 'var(--danger)', background: '#fef2f2', padding: '8px 10px', borderRadius: 6 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="button" onClick={onClose} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancel</button>
+            <button
+              type="submit"
+              disabled={saving || !subject.trim()}
+              style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: '#fff', cursor: saving ? 'wait' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: saving || !subject.trim() ? 0.6 : 1 }}
+            >
+              {saving ? 'Creating…' : 'Create Task'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function taskHsUrl(task) {
   const deal = task.deals?.[0]
   const contact = task.contacts?.[0]
@@ -117,11 +276,12 @@ export default function MyTasks() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
-  const [completing, setCompleting] = useState(new Set()) // taskIds in-flight
+  const [completing, setCompleting] = useState(new Set())
+  const [newTaskOpen, setNewTaskOpen] = useState(false)
 
   const [ownerFilter, setOwnerFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
-  const [datePreset, setDatePreset] = useState('week')
+  const [datePreset, setDatePreset] = useState('all')
 
   async function load() {
     setLoading(true)
@@ -153,19 +313,26 @@ export default function MyTasks() {
       const res = await fetch('/api/tasks', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ taskId, complete: true }),
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error || 'Failed to complete task')
       }
-      // Remove from local state immediately
       setTasks(prev => prev.filter(t => t.id !== taskId))
     } catch (e) {
       alert(`Error: ${e.message}`)
     } finally {
       setCompleting(prev => { const s = new Set(prev); s.delete(taskId); return s })
     }
+  }
+
+  function updateTaskDueDate(taskId, newIso) {
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, properties: { ...t.properties, hs_timestamp: newIso } }
+        : t
+    ))
   }
 
   const filtered = useMemo(() => {
@@ -253,8 +420,18 @@ export default function MyTasks() {
     { value: 'all',     label: 'All Open' },
   ]
 
+  const defaultOwnerId = owners.find(o => o.email === DEFAULT_EMAIL)?.id || ''
+
   return (
     <>
+      {newTaskOpen && (
+        <NewTaskModal
+          owners={owners}
+          defaultOwnerId={defaultOwnerId}
+          onClose={() => setNewTaskOpen(false)}
+          onCreated={load}
+        />
+      )}
       <div className="kpi-row">
         <div className="kpi-card blue">
           <div className="kpi-label">Total Open</div>
@@ -287,6 +464,16 @@ export default function MyTasks() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => setNewTaskOpen(true)}
+              style={{
+                fontSize: 12, padding: '5px 12px', borderRadius: 6,
+                border: 'none', background: 'var(--accent)', color: '#fff',
+                cursor: 'pointer', fontWeight: 600,
+              }}
+            >
+              + New Task
+            </button>
             <button
               onClick={load}
               disabled={loading}
@@ -383,7 +570,7 @@ export default function MyTasks() {
 
                 return (
                   <tr key={task.id}>
-                    <td><DueDateCell ts={p.hs_timestamp} /></td>
+                    <td><EditableDueDate taskId={task.id} ts={p.hs_timestamp} onUpdated={updateTaskDueDate} /></td>
                     <td>
                       <div style={{ fontWeight: 500, fontSize: 13 }}>
                         {p.hs_task_subject || '(No subject)'}

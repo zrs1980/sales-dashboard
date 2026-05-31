@@ -36,14 +36,16 @@ async function batchAssocChunked(fromType, toType, ids) {
 }
 
 export async function fetchMyTasks() {
-  const OPEN_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'WAITING', 'DEFERRED']
   const results = []
   let after = undefined
   while (true) {
     const data = await hsPost('/crm/v3/objects/tasks/search', {
-      filterGroups: OPEN_STATUSES.map(s => ({
-        filters: [{ propertyName: 'hs_task_status', operator: 'EQ', value: s }],
-      })),
+      filterGroups: [{
+        filters: [
+          { propertyName: 'hs_task_status', operator: 'NEQ', value: 'COMPLETED' },
+          { propertyName: 'hs_task_status', operator: 'NEQ', value: 'CANCELED' },
+        ],
+      }],
       properties: [
         'hs_task_subject', 'hs_task_body', 'hs_task_status', 'hs_task_type',
         'hs_timestamp', 'hubspot_owner_id', 'hs_task_priority',

@@ -8,12 +8,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'PATCH') {
-    const { taskId } = req.body || {}
+    const { taskId, dueDate, complete } = req.body || {}
     if (!taskId) return res.status(400).json({ error: 'taskId is required' })
     try {
-      await hsPatch(`/crm/v3/objects/tasks/${taskId}`, {
-        properties: { hs_task_status: 'COMPLETED' },
-      })
+      const properties = {}
+      if (complete) properties.hs_task_status = 'COMPLETED'
+      if (dueDate) properties.hs_timestamp = new Date(dueDate + 'T12:00:00.000Z').toISOString()
+      await hsPatch(`/crm/v3/objects/tasks/${taskId}`, { properties })
       return res.json({ ok: true })
     } catch (e) {
       return res.status(500).json({ error: e.message })
@@ -24,7 +25,6 @@ export default async function handler(req, res) {
 
   const { dealId, contactId, subject, body, ownerId, dueDate } = req.body || {}
   if (!subject) return res.status(400).json({ error: 'subject is required' })
-  if (!dealId && !contactId) return res.status(400).json({ error: 'dealId or contactId is required' })
 
   try {
     const dueDateIso = dueDate

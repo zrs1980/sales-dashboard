@@ -14,8 +14,15 @@ import CreateTaskModal from '../components/CreateTaskModal.jsx'
 const PORTAL_ID = '243159630'
 
 const STAGE_ORDER = [
-  'New Deal', 'Req. Analysis', 'Demo Booked', 'Demo Complete',
-  "Add'l Education", 'Negotiation',
+  'New Deal',
+  'Requirements Analysis Booked',
+  'Requirements Analysis Complete',
+  'Deep Dive Demo Booked',
+  'Deep Dive Demo Complete',
+  'Proposal Review Scheduled',
+  'Proposal Review Complete',
+  'Additional Education & Alignment',
+  'Negotiation',
 ]
 
 function RiskFlag({ days }) {

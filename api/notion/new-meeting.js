@@ -89,38 +89,16 @@ export default async function handler(req, res) {
       },
     })
 
-    // 3. Append a "New Meeting Recording" button block
-    let buttonError = null
+    // 3. Append an AI Meeting Notes block directly to the page
     try {
       await notionPatch(`/blocks/${newMeeting.id}/children`, {
-        children: [
-          {
-            type: 'button',
-            button: {
-              rich_text: [
-                { type: 'text', text: { content: '🎙 New Meeting Recording' } },
-              ],
-              color: 'red',
-              actions: [
-                {
-                  type: 'insert_below',
-                  insert_below: {
-                    content: {
-                      type: 'ai_block',
-                      ai_block: {},
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        ],
+        children: [{ type: 'meeting_notes', meeting_notes: {} }],
       })
-    } catch (e) {
-      buttonError = e.message
+    } catch {
+      // meeting_notes block not accepted — page still opens fine
     }
 
-    res.json({ meetingUrl: newMeeting.url, buttonError })
+    res.json({ meetingUrl: newMeeting.url })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 
 export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
-  const [state, setState] = useState('idle') // idle | loading | loaded | error | creating | created
+  const [state, setState] = useState('idle') // idle | creating | error
   const [lines, setLines] = useState([])
-  const [open, setOpen] = useState(false)
   const [createdUrl, setCreatedUrl] = useState(null)
   const effectiveLink = createdUrl || notionLink
   const effectivePageId = createdUrl
@@ -64,53 +63,28 @@ export default function NotionNotes({ pageId, notionLink, dealId, dealName }) {
     )
   }
 
-  async function load() {
-    if (state === 'loaded') { setOpen(o => !o); return }
-    setState('loading')
-    setOpen(true)
-    try {
-      const res = await fetch(`/api/notion/${encodeURIComponent(effectivePageId)}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed')
-      setLines(data.lines || [])
-      setState('loaded')
-    } catch (e) {
-      setLines([e.message])
-      setState('error')
-    }
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {effectiveLink && (
-          <a
-            href={effectiveLink}
-            target="_blank"
-            rel="noreferrer"
-            style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
-          >
-            Open ↗
-          </a>
-        )}
-        {effectivePageId && (
-          <button className="notion-toggle" onClick={load}>
-            {state === 'loading' ? '…' : open ? 'Hide notes' : 'View notes'}
-          </button>
-        )}
-      </div>
-      {open && state === 'loaded' && lines.length > 0 && (
-        <div className="notion-notes">
-          {lines.map((line, i) => <div key={i}>{line}</div>)}
-        </div>
-      )}
-      {open && state === 'loaded' && lines.length === 0 && (
-        <div className="notion-notes" style={{ color: 'var(--text-muted)' }}>No content found</div>
-      )}
-      {open && state === 'error' && (
-        <div className="notion-notes" style={{ color: 'var(--danger)' }}>
-          Could not load: {lines[0]}
-        </div>
+      {effectiveLink && (
+        <a
+          href={effectiveLink}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: 'inline-block',
+            background: 'var(--success)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+            padding: '3px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Open in Notion
+        </a>
       )}
     </div>
   )

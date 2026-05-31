@@ -1,7 +1,6 @@
 import { hsPatch } from '../_hubspot.js'
 
 const NOTION_BASE = 'https://api.notion.com/v1'
-const TEMPLATE_PAGE_ID = '246f8201-2f2c-80d6-aa10-cf4af0a8a02a'
 const DATABASE_ID = '245f8201-2f2c-806c-8e09-f9330cd5507d'
 
 function notionHeaders() {
@@ -10,15 +9,6 @@ function notionHeaders() {
     'Notion-Version': '2022-06-28',
     'Content-Type': 'application/json',
   }
-}
-
-async function notionGet(path) {
-  const res = await fetch(`${NOTION_BASE}${path}`, { headers: notionHeaders() })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || `Notion GET ${path} → ${res.status}`)
-  }
-  return res.json()
 }
 
 async function notionPost(path, body) {
@@ -48,19 +38,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Try to fetch template block children; fall back to blank page if inaccessible
-    let children = []
-    try {
-      const blocksData = await notionGet(`/blocks/${TEMPLATE_PAGE_ID}/children?page_size=100`)
-      children = (blocksData.results || []).map(block => {
-        const { type } = block
-        return { type, [type]: block[type] }
-      }).filter(b => b[b.type] !== undefined)
-    } catch {
-      // Template not shared with integration — create blank page
-    }
-
-    // 2. Create new page in the CEBA Only Account Database
+    // Create new page in the CEBA Only Account Database
     const newPage = await notionPost('/pages', {
       parent: { database_id: DATABASE_ID },
       properties: {
@@ -71,7 +49,6 @@ export default async function handler(req, res) {
           select: { name: 'Prospect' },
         },
       },
-      children,
     })
 
     const notionUrl = newPage.url

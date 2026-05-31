@@ -232,7 +232,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap }) {
           dealId={id}
           dealName={name}
           createEndpoint="/api/notion/create-lead-account"
-          createPayload={{ leadId: id, leadName: name }}
+          createPayload={{ leadId: id, leadName: company || name }}
         />
       </td>
       <td><a className="deal-link" href={url} target="_blank" rel="noreferrer">Open →</a></td>

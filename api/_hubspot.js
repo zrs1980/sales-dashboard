@@ -47,6 +47,19 @@ export async function hsPost(path, body) {
   return res.json()
 }
 
+export async function hsPatch(path, body) {
+  const res = await fetchWithRetry(BASE + path, {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`HubSpot PATCH ${path} → ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
 export const DEAL_PROPS = [
   'dealname', 'amount', 'closedate', 'dealstage', 'pipeline',
   'hubspot_owner_id', 'hs_deal_stage_probability', 'num_notes',

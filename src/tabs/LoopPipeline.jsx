@@ -53,7 +53,7 @@ function DealRow({ deal, stageMap }) {
       <td><RiskFlag days={daysInStage} /></td>
       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(p.notes_last_updated) || '—'}</td>
       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{notes}</td>
-      <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} /></td>
+      <td><NotionNotes pageId={notionPageId} notionLink={p.notion_link} dealId={id} dealName={name} /></td>
       <td><AiReview dealId={id} notionPageId={notionPageId} dealName={name} /></td>
     </tr>
   )

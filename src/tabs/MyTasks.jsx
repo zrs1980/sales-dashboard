@@ -110,6 +110,7 @@ export default function MyTasks() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [lastLoaded, setLastLoaded] = useState(null)
+  const [completing, setCompleting] = useState(new Set()) // taskIds in-flight
 
   const [ownerFilter, setOwnerFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -138,6 +139,27 @@ export default function MyTasks() {
   }
 
   useEffect(() => { load() }, [])
+
+  async function completeTask(taskId) {
+    setCompleting(prev => new Set(prev).add(taskId))
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to complete task')
+      }
+      // Remove from local state immediately
+      setTasks(prev => prev.filter(t => t.id !== taskId))
+    } catch (e) {
+      alert(`Error: ${e.message}`)
+    } finally {
+      setCompleting(prev => { const s = new Set(prev); s.delete(taskId); return s })
+    }
+  }
 
   const filtered = useMemo(() => {
     const now = new Date()
@@ -338,8 +360,10 @@ export default function MyTasks() {
                 <th style={{ width: 130 }}>Assignee</th>
                 <th>Contact</th>
                 <th>Company</th>
+                <th style={{ width: 120 }}>Phone</th>
+                <th style={{ width: 200 }}>Description</th>
                 <th>Deal</th>
-                <th style={{ width: 60 }}>Open</th>
+                <th style={{ width: 120 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -389,6 +413,18 @@ export default function MyTasks() {
                       {company?.name || <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {company?.phone || <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 200 }}>
+                      {company?.description ? (
+                        <span title={company.description} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {company.description}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                       {deal?.dealname ? (
                         <a
                           href={`https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${deal.id}`}
@@ -404,30 +440,43 @@ export default function MyTasks() {
                       )}
                     </td>
                     <td>
-                      {hsUrl ? (
-                        <a
-                          href={hsUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {hsUrl && (
+                          <a
+                            href={hsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-block', padding: '3px 8px',
+                              background: 'var(--accent)', color: '#fff',
+                              borderRadius: 4, fontSize: 11, fontWeight: 600,
+                              textDecoration: 'none', whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Open ↗
+                          </a>
+                        )}
+                        <button
+                          onClick={() => completeTask(task.id)}
+                          disabled={completing.has(task.id)}
                           style={{
-                            display: 'inline-block', padding: '3px 8px',
-                            background: 'var(--accent)', color: '#fff',
-                            borderRadius: 4, fontSize: 11, fontWeight: 600,
-                            textDecoration: 'none', whiteSpace: 'nowrap',
+                            padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                            border: '1px solid var(--success)', cursor: completing.has(task.id) ? 'wait' : 'pointer',
+                            background: completing.has(task.id) ? 'var(--off-white)' : 'var(--white)',
+                            color: completing.has(task.id) ? 'var(--text-muted)' : 'var(--success)',
+                            whiteSpace: 'nowrap',
                           }}
                         >
-                          Open ↗
-                        </a>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
-                      )}
+                          {completing.has(task.id) ? '…' : '✓ Complete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
+                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>
                     No tasks match the current filters
                   </td>
                 </tr>

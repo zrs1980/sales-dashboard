@@ -77,7 +77,7 @@ export async function fetchMyTasks() {
   const [contacts, deals, companies] = await Promise.all([
     batchReadProps('contacts', contactIds, ['firstname', 'lastname', 'email']),
     batchReadProps('deals',    dealIds,    ['dealname']),
-    batchReadProps('companies', companyIds, ['name']),
+    batchReadProps('companies', companyIds, ['name', 'phone', 'description']),
   ])
 
   return results.map(task => {

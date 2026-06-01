@@ -141,6 +141,66 @@ async function batchReadTasks(taskIds) {
   return results
 }
 
+export async function fetchMyMeetings() {
+  const MEETING_PROPS = [
+    'hs_meeting_title', 'hs_timestamp', 'hs_meeting_end_time',
+    'hs_meeting_outcome', 'hs_meeting_body', 'hubspot_owner_id',
+  ]
+
+  // Meetings from 1 day ago through all future (so recently-past meetings are visible)
+  const oneDayAgo = String(Date.now() - 24 * 60 * 60 * 1000)
+
+  const acc = []
+  let after = undefined
+  while (true) {
+    const data = await hsPost('/crm/v3/objects/meetings/search', {
+      filterGroups: [{ filters: [{ propertyName: 'hs_timestamp', operator: 'GTE', value: oneDayAgo }] }],
+      properties: MEETING_PROPS,
+      sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
+      limit: 100,
+      ...(after ? { after } : {}),
+    })
+    acc.push(...(data.results || []))
+    if (!data.paging?.next?.after || acc.length >= 200) break
+    after = data.paging.next.after
+  }
+
+  if (!acc.length) return []
+
+  const meetingIds = acc.map(m => m.id)
+
+  const [contactAssoc, dealAssoc, companyAssoc, leadAssoc] = await Promise.all([
+    batchAssocChunked('meetings', 'contacts',  meetingIds),
+    batchAssocChunked('meetings', 'deals',     meetingIds),
+    batchAssocChunked('meetings', 'companies', meetingIds),
+    batchAssocChunked('meetings', 'leads',     meetingIds),
+  ])
+
+  const contactIds = new Set(Object.values(contactAssoc).flat())
+  const dealIds    = new Set(Object.values(dealAssoc).flat())
+  const companyIds = new Set(Object.values(companyAssoc).flat())
+  const leadIds    = new Set(Object.values(leadAssoc).flat())
+
+  const [contacts, deals, companies, leads] = await Promise.all([
+    batchReadProps('contacts',  contactIds, ['firstname', 'lastname', 'email']),
+    batchReadProps('deals',     dealIds,    ['dealname']),
+    batchReadProps('companies', companyIds, ['name', 'phone', 'description']),
+    batchReadProps('leads',     leadIds,    ['hs_lead_name', 'hs_associated_company_name']),
+  ])
+
+  return acc.map(meeting => {
+    const mid = meeting.id
+    return {
+      ...meeting,
+      _itemType: 'meeting',
+      contacts:  (contactAssoc[mid] || []).map(id => ({ id, ...(contacts[id]  || {}) })).filter(c => c.firstname || c.lastname || c.email),
+      deals:     (dealAssoc[mid]    || []).map(id => ({ id, ...(deals[id]     || {}) })).filter(d => d.dealname),
+      companies: (companyAssoc[mid] || []).map(id => ({ id, ...(companies[id] || {}) })).filter(c => c.name),
+      leads:     (leadAssoc[mid]    || []).map(id => ({ id, ...(leads[id]     || {}) })).filter(l => l.hs_lead_name || l.hs_associated_company_name),
+    }
+  })
+}
+
 export async function fetchLoopStages() {
   const data = await hsGet(`/crm/v3/pipelines/deals/${LOOP_PIPELINE}/stages`)
   const map = {}

@@ -1,4 +1,4 @@
-import { fetchMyTasks } from './_data.js'
+import { fetchMyTasks, fetchMyMeetings } from './_data.js'
 import { hsGet } from './_hubspot.js'
 
 export default async function handler(req, res) {
@@ -10,8 +10,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const [tasks, ownersData] = await Promise.all([
+    const [tasks, meetings, ownersData] = await Promise.all([
       fetchMyTasks(),
+      fetchMyMeetings(),
       hsGet('/crm/v3/owners', { limit: 100 }),
     ])
 
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
       email: o.email || '',
     }))
 
-    res.json({ tasks, owners })
+    res.json({ tasks, meetings, owners })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

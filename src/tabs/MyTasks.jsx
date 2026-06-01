@@ -18,6 +18,7 @@ const TYPE_LABELS = {
   EMAIL: 'Email',
   TODO: 'Task',
   LINKEDIN_MESSAGE: 'LinkedIn',
+  MEETING: 'Meeting',
 }
 
 const STATUS_LABELS = {
@@ -32,11 +33,32 @@ const TYPE_COLORS = {
   EMAIL: { bg: '#f0fdf4', color: '#16a34a' },
   TODO: { bg: '#f5f3ff', color: '#7c3aed' },
   LINKEDIN_MESSAGE: { bg: '#fef3c7', color: '#b45309' },
+  MEETING: { bg: '#f0fdfa', color: '#0d9488' },
+}
+
+const MEETING_OUTCOME_COLORS = {
+  SCHEDULED:   { bg: '#eff6ff', color: '#2563eb' },
+  COMPLETED:   { bg: '#f0fdf4', color: '#16a34a' },
+  NO_SHOW:     { bg: '#fef2f2', color: '#dc2626' },
+  RESCHEDULED: { bg: '#f5f3ff', color: '#7c3aed' },
+  CANCELED:    { bg: '#f9fafb', color: '#6b7280' },
 }
 
 const PRIORITY_COLORS = {
   HIGH: { bg: '#fef2f2', color: '#dc2626' },
   MEDIUM: { bg: '#fffbeb', color: '#d97706' },
+}
+
+function MeetingOutcomeBadge({ outcome }) {
+  if (!outcome) return null
+  const colors = MEETING_OUTCOME_COLORS[outcome] || { bg: '#f3f4f6', color: '#6b7280' }
+  const label = outcome.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+  return (
+    <span style={{
+      display: 'inline-block', padding: '1px 5px', borderRadius: 4,
+      fontSize: 10, fontWeight: 600, background: colors.bg, color: colors.color, marginLeft: 4,
+    }}>{label}</span>
+  )
 }
 
 function TypeBadge({ type }) {
@@ -264,6 +286,16 @@ function taskHsUrl(task) {
   return null
 }
 
+function meetingHsUrl(meeting) {
+  const deal = meeting.deals?.[0]
+  const contact = meeting.contacts?.[0]
+  const company = meeting.companies?.[0]
+  if (deal) return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${deal.id}`
+  if (contact) return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-1/${contact.id}`
+  if (company) return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-2/${company.id}`
+  return `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-47/${meeting.id}`
+}
+
 function taskDueDays(ts) {
   if (!ts) return null
   const d = parseTs(ts)
@@ -299,7 +331,17 @@ export default function MyTasks() {
       const res = await fetch('/api/my-tasks')
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || `Error ${res.status}`)
-      setTasks(json.tasks || [])
+      const normalizedMeetings = (json.meetings || []).map(m => ({
+        ...m,
+        _itemType: 'meeting',
+        properties: {
+          ...m.properties,
+          hs_task_subject: m.properties?.hs_meeting_title || '',
+          hs_task_type: 'MEETING',
+          hs_task_body: m.properties?.hs_meeting_body || '',
+        },
+      }))
+      setTasks([...(json.tasks || []), ...normalizedMeetings])
       const ownerList = json.owners || []
       setOwners(ownerList)
       if (!ownerFilter) {
@@ -425,10 +467,20 @@ export default function MyTasks() {
   }, [filtered, sort, owners])
 
   // KPI counts (from full owner-filtered set, ignoring date preset)
-  const ownerTasks = useMemo(() => ownerFilter
-    ? tasks.filter(t => t.properties?.hubspot_owner_id === ownerFilter)
-    : tasks
-  , [tasks, ownerFilter])
+  const ownerTasks = useMemo(() => {
+    const justTasks = tasks.filter(t => t._itemType !== 'meeting')
+    return ownerFilter ? justTasks.filter(t => t.properties?.hubspot_owner_id === ownerFilter) : justTasks
+  }, [tasks, ownerFilter])
+
+  const kpiMeetings = useMemo(() => {
+    const now = Date.now()
+    const meetingItems = tasks.filter(t => t._itemType === 'meeting')
+    const ownerMeetings = ownerFilter ? meetingItems.filter(m => m.properties?.hubspot_owner_id === ownerFilter) : meetingItems
+    return ownerMeetings.filter(m => {
+      const ts = parseTs(m.properties?.hs_timestamp)
+      return ts && ts.getTime() >= now
+    }).length
+  }, [tasks, ownerFilter])
 
   const kpiOverdue = useMemo(() => {
     const now = new Date()
@@ -453,6 +505,8 @@ export default function MyTasks() {
     const seen = new Set(tasks.map(t => t.properties?.hs_task_type).filter(Boolean))
     return [...seen]
   }, [tasks])
+
+  const meetingCount = useMemo(() => tasks.filter(t => t._itemType === 'meeting').length, [tasks])
 
   const lastLoadedStr = lastLoaded
     ? lastLoaded.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -506,6 +560,11 @@ export default function MyTasks() {
           <div className="kpi-label">Due This Week</div>
           <div className="kpi-value">{kpiWeek}</div>
           <div className="kpi-sub">Next 7 days</div>
+        </div>
+        <div className="kpi-card purple">
+          <div className="kpi-label">Upcoming Meetings</div>
+          <div className="kpi-value">{kpiMeetings}</div>
+          <div className="kpi-sub">Scheduled ahead</div>
         </div>
       </div>
 
@@ -589,7 +648,13 @@ export default function MyTasks() {
           </div>
 
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>
-            {sorted.length} task{sorted.length !== 1 ? 's' : ''}
+            {(() => {
+              const t = sorted.filter(i => i._itemType !== 'meeting').length
+              const m = sorted.filter(i => i._itemType === 'meeting').length
+              if (t > 0 && m > 0) return `${t} task${t !== 1 ? 's' : ''}, ${m} meeting${m !== 1 ? 's' : ''}`
+              if (m > 0) return `${m} meeting${m !== 1 ? 's' : ''}`
+              return `${t} task${t !== 1 ? 's' : ''}`
+            })()}
           </span>
         </div>
 
@@ -624,13 +689,23 @@ export default function MyTasks() {
                   ? lead.hs_lead_name || lead.hs_associated_company_name || `Lead #${lead.id}`
                   : null
 
+                const isMeeting = task._itemType === 'meeting'
                 return (
-                  <tr key={task.id}>
-                    <td><EditableDueDate taskId={task.id} ts={p.hs_timestamp} onUpdated={updateTaskDueDate} /></td>
+                  <tr key={isMeeting ? `m-${task.id}` : task.id}>
+                    <td>
+                      {isMeeting
+                        ? <DueDateCell ts={p.hs_timestamp} />
+                        : <EditableDueDate taskId={task.id} ts={p.hs_timestamp} onUpdated={updateTaskDueDate} />
+                      }
+                    </td>
                     <td>
                       <div style={{ fontWeight: 500, fontSize: 13 }}>
-                        {p.hs_task_subject || '(No subject)'}
-                        <PriorityBadge priority={p.hs_task_priority} />
+                        <TypeBadge type={p.hs_task_type} />
+                        <span style={{ marginLeft: 6 }}>{p.hs_task_subject || '(No subject)'}</span>
+                        {isMeeting
+                          ? <MeetingOutcomeBadge outcome={p.hs_meeting_outcome} />
+                          : <PriorityBadge priority={p.hs_task_priority} />
+                        }
                       </div>
                       {p.hs_task_body && (
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -695,34 +770,39 @@ export default function MyTasks() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {hsUrl && (
-                          <a
-                            href={hsUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        {(() => {
+                          const url = isMeeting ? meetingHsUrl(task) : hsUrl
+                          return url ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-block', padding: '3px 8px',
+                                background: 'var(--accent)', color: '#fff',
+                                borderRadius: 4, fontSize: 11, fontWeight: 600,
+                                textDecoration: 'none', whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Open ↗
+                            </a>
+                          ) : null
+                        })()}
+                        {!isMeeting && (
+                          <button
+                            onClick={() => completeTask(task.id)}
+                            disabled={completing.has(task.id)}
                             style={{
-                              display: 'inline-block', padding: '3px 8px',
-                              background: 'var(--accent)', color: '#fff',
-                              borderRadius: 4, fontSize: 11, fontWeight: 600,
-                              textDecoration: 'none', whiteSpace: 'nowrap',
+                              padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                              border: '1px solid var(--success)', cursor: completing.has(task.id) ? 'wait' : 'pointer',
+                              background: completing.has(task.id) ? 'var(--off-white)' : 'var(--white)',
+                              color: completing.has(task.id) ? 'var(--text-muted)' : 'var(--success)',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            Open ↗
-                          </a>
+                            {completing.has(task.id) ? '…' : '✓ Complete'}
+                          </button>
                         )}
-                        <button
-                          onClick={() => completeTask(task.id)}
-                          disabled={completing.has(task.id)}
-                          style={{
-                            padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                            border: '1px solid var(--success)', cursor: completing.has(task.id) ? 'wait' : 'pointer',
-                            background: completing.has(task.id) ? 'var(--off-white)' : 'var(--white)',
-                            color: completing.has(task.id) ? 'var(--text-muted)' : 'var(--success)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {completing.has(task.id) ? '…' : '✓ Complete'}
-                        </button>
                       </div>
                     </td>
                   </tr>

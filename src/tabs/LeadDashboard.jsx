@@ -315,7 +315,7 @@ function getSortVal(lead, col, stageMap) {
   }
 }
 
-const ACTIVE_LOOP_STAGE_LABELS = new Set(['Discovery Ready', 'Engaged', 'Discovery Scheduled', 'Intent', 'Discovery Complete'])
+const ACTIVE_LOOP_STAGE_LABELS = new Set(['Discovery Ready', 'Engaged', 'Discovery Scheduled', 'Intent', 'Stage of Intent', 'Discovery Complete'])
 
 export default function LeadDashboard({ data, loading }) {
   // Extract data at the top with safe defaults — must be before all hooks

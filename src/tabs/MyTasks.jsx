@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fmtDate } from '../utils.js'
+import { SortTh } from '../components/TableSort.jsx'
 
 const PORTAL_ID = '243159630'
 const DEFAULT_EMAIL = 'zabe@cebasolutions.com'
@@ -282,6 +283,14 @@ export default function MyTasks() {
   const [ownerFilter, setOwnerFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [datePreset, setDatePreset] = useState('all')
+  const [sort, setSort] = useState({ key: 'duedate', dir: 'asc' })
+
+  function toggleSort(key) {
+    setSort(s => s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'asc' }
+    )
+  }
 
   async function load() {
     setLoading(true)
@@ -363,12 +372,57 @@ export default function MyTasks() {
   }, [tasks, ownerFilter, typeFilter, datePreset])
 
   const sorted = useMemo(() => {
+    const { key, dir } = sort
     return [...filtered].sort((a, b) => {
-      const at = parseTs(a.properties?.hs_timestamp)?.getTime() ?? Infinity
-      const bt = parseTs(b.properties?.hs_timestamp)?.getTime() ?? Infinity
-      return at - bt
+      const ap = a.properties || {}
+      const bp = b.properties || {}
+
+      if (key === 'duedate') {
+        const aT = parseTs(ap.hs_timestamp)?.getTime()
+        const bT = parseTs(bp.hs_timestamp)?.getTime()
+        if (aT == null && bT == null) return 0
+        if (aT == null) return 1
+        if (bT == null) return -1
+        return dir === 'asc' ? aT - bT : bT - aT
+      }
+
+      let aVal, bVal
+      if (key === 'subject') {
+        aVal = (ap.hs_task_subject || '').toLowerCase()
+        bVal = (bp.hs_task_subject || '').toLowerCase()
+      } else if (key === 'assignee') {
+        aVal = (owners.find(o => o.id === ap.hubspot_owner_id)?.name || '').toLowerCase()
+        bVal = (owners.find(o => o.id === bp.hubspot_owner_id)?.name || '').toLowerCase()
+      } else if (key === 'contact') {
+        const ac = a.contacts?.[0]
+        const bc = b.contacts?.[0]
+        aVal = ([ac?.firstname, ac?.lastname].filter(Boolean).join(' ') || ac?.email || '').toLowerCase()
+        bVal = ([bc?.firstname, bc?.lastname].filter(Boolean).join(' ') || bc?.email || '').toLowerCase()
+      } else if (key === 'company') {
+        aVal = (a.companies?.[0]?.name || '').toLowerCase()
+        bVal = (b.companies?.[0]?.name || '').toLowerCase()
+      } else if (key === 'description') {
+        aVal = (a.companies?.[0]?.description || '').toLowerCase()
+        bVal = (b.companies?.[0]?.description || '').toLowerCase()
+      } else if (key === 'lead') {
+        const al = a.leads?.[0]
+        const bl = b.leads?.[0]
+        aVal = (al?.hs_lead_name || al?.hs_associated_company_name || '').toLowerCase()
+        bVal = (bl?.hs_lead_name || bl?.hs_associated_company_name || '').toLowerCase()
+      } else if (key === 'deal') {
+        aVal = (a.deals?.[0]?.dealname || '').toLowerCase()
+        bVal = (b.deals?.[0]?.dealname || '').toLowerCase()
+      } else {
+        return 0
+      }
+
+      // Empty strings sort to bottom
+      if (!aVal && bVal) return 1
+      if (aVal && !bVal) return -1
+      const cmp = aVal.localeCompare(bVal)
+      return dir === 'asc' ? cmp : -cmp
     })
-  }, [filtered])
+  }, [filtered, sort, owners])
 
   // KPI counts (from full owner-filtered set, ignoring date preset)
   const ownerTasks = useMemo(() => ownerFilter
@@ -543,14 +597,14 @@ export default function MyTasks() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: 110 }}>Due Date</th>
-                <th>Subject</th>
-                <th style={{ width: 130 }}>Assignee</th>
-                <th>Contact</th>
-                <th>Company</th>
-                <th style={{ width: 200 }}>Description</th>
-                <th>Lead</th>
-                <th>Deal</th>
+                <SortTh sortKey="duedate"     sort={sort} onSort={toggleSort} style={{ width: 110 }}>Due Date</SortTh>
+                <SortTh sortKey="subject"     sort={sort} onSort={toggleSort}>Subject</SortTh>
+                <SortTh sortKey="assignee"    sort={sort} onSort={toggleSort} style={{ width: 130 }}>Assignee</SortTh>
+                <SortTh sortKey="contact"     sort={sort} onSort={toggleSort}>Contact</SortTh>
+                <SortTh sortKey="company"     sort={sort} onSort={toggleSort}>Company</SortTh>
+                <SortTh sortKey="description" sort={sort} onSort={toggleSort} style={{ width: 200 }}>Description</SortTh>
+                <SortTh sortKey="lead"        sort={sort} onSort={toggleSort}>Lead</SortTh>
+                <SortTh sortKey="deal"        sort={sort} onSort={toggleSort}>Deal</SortTh>
                 <th style={{ width: 120 }}>Actions</th>
               </tr>
             </thead>

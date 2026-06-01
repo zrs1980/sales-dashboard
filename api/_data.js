@@ -48,11 +48,11 @@ export async function fetchMyTasks() {
   // HubSpot task search applies an implicit past-only window, so we make two
   // parallel queries — one for past/current and one explicitly for future dates
   // — then deduplicate the combined results.
-  async function searchPage(tsFilter, after) {
+  async function searchPage(tsFilter, direction, after) {
     return hsPost('/crm/v3/objects/tasks/search', {
       filterGroups: [{ filters: tsFilter ? [...OPEN_FILTERS, tsFilter] : OPEN_FILTERS }],
       properties: TASK_PROPS,
-      sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
+      sorts: [{ propertyName: 'hs_timestamp', direction }],
       limit: 100,
       ...(after ? { after } : {}),
     })
@@ -61,28 +61,33 @@ export async function fetchMyTasks() {
   const nowMs = String(Date.now())
   const pastFilter   = { propertyName: 'hs_timestamp', operator: 'LTE', value: nowMs }
   const futureFilter = { propertyName: 'hs_timestamp', operator: 'GT',  value: nowMs }
+  const noTsFilter   = { propertyName: 'hs_timestamp', operator: 'NOT_HAS_PROPERTY' }
 
-  async function paginate(tsFilter) {
+  async function paginate(tsFilter, direction = 'ASCENDING', limit = 500) {
     const acc = []
     let after = undefined
     while (true) {
-      const data = await searchPage(tsFilter, after)
+      const data = await searchPage(tsFilter, direction, after)
       acc.push(...(data.results || []))
-      if (!data.paging?.next?.after || acc.length >= 250) break
+      if (!data.paging?.next?.after || acc.length >= limit) break
       after = data.paging.next.after
     }
     return acc
   }
 
-  const [pastResults, futureResults] = await Promise.all([
-    paginate(pastFilter),
-    paginate(futureFilter),
+  // Three parallel queries: past-dated, future-dated, and no due date set.
+  // HubSpot's implicit past-only window means tasks without a timestamp
+  // won't match either the LTE or GT filter — the third query catches them.
+  const [pastResults, futureResults, noTsResults] = await Promise.all([
+    paginate(pastFilter,   'DESCENDING'), // most recent overdue first so they aren't cut off
+    paginate(futureFilter, 'ASCENDING'),  // soonest upcoming first
+    paginate(noTsFilter,   'ASCENDING'),
   ])
 
   // Deduplicate by id
   const seen = new Set()
   const results = []
-  for (const t of [...pastResults, ...futureResults]) {
+  for (const t of [...pastResults, ...futureResults, ...noTsResults]) {
     if (!seen.has(t.id)) { seen.add(t.id); results.push(t) }
   }
 

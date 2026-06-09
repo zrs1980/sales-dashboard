@@ -187,6 +187,7 @@ function LeadRow({ lead, index, stageMap, pipelineMap, onNewTask }) {
   const calls = parseInt(p.hs_lead_call_count || p.hs_calls_attempted_count || 0)
   const emails = parseInt(p.hs_lead_email_count || 0)
   const meetings = parseInt(p.hs_lead_meeting_count || 0)
+  const attempts = parseInt(p.hs_lead_outreach_activity_count || 0) || (calls + emails + meetings)
 
   const lastActivity = p.hs_last_activity_date ? fmtDate(p.hs_last_activity_date) : null
   const nextActivity = fmtNext(p.hs_next_activity_date)
@@ -215,11 +216,14 @@ function LeadRow({ lead, index, stageMap, pipelineMap, onNewTask }) {
       </td>
       <td><LabelBadge label={p.hs_lead_label} /></td>
       <td>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {calls > 0 && <span title="Calls" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📞 {calls}</span>}
-          {emails > 0 && <span title="Emails" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>✉️ {emails}</span>}
-          {meetings > 0 && <span title="Meetings" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📅 {meetings}</span>}
-          {calls === 0 && emails === 0 && meetings === 0 && <span style={{ color: 'var(--danger)', fontSize: 11 }}>None</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <TouchDots count={attempts} />
+          <div style={{ display: 'flex', gap: 5 }}>
+            {calls > 0 && <span title="Calls" style={{ fontSize: 10, color: 'var(--text-muted)' }}>📞 {calls}</span>}
+            {emails > 0 && <span title="Emails" style={{ fontSize: 10, color: 'var(--text-muted)' }}>✉️ {emails}</span>}
+            {meetings > 0 && <span title="Meetings" style={{ fontSize: 10, color: 'var(--text-muted)' }}>📅 {meetings}</span>}
+            {attempts === 0 && <span style={{ color: 'var(--danger)', fontSize: 10 }}>None</span>}
+          </div>
         </div>
       </td>
       <td style={{ fontSize: 12, color: lastActivity ? 'var(--text-secondary)' : 'var(--danger)' }}>
@@ -586,7 +590,7 @@ export default function LeadDashboard({ data, loading }) {
                 <SortableTh col="company"       label="Company"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="stage"         label="Pipeline / Stage" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="label"         label="Label"            sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <th>Activity</th>
+                <SortableTh col="progress" label="Attempts" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="last_active"   label="Last Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="next_activity" label="Next Activity"    sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortableTh col="created"       label="Created"          sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />

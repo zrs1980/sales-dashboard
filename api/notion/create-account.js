@@ -60,13 +60,35 @@ export default async function handler(req, res) {
         [titleProp]: {
           title: [{ type: 'text', text: { content: dealName } }],
         },
+        'Account Type': {
+          select: { name: 'Prospect' },
+        },
+        'Company': {
+          multi_select: [{ name: 'Loop ERP' }],
+        },
+        'Stage': {
+          multi_select: [{ name: 'New Lead' }],
+        },
         'Hubsport Deal URL': {
           url: hsUrl,
         },
       },
     })
 
+    const newPageId = newPage.id
     const notionUrl = newPage.url
+
+    // Add inline Meeting Notes database matching the Loop Meeting Notes schema
+    await notionPost(`/databases`, {
+      parent: { type: 'page_id', page_id: newPageId },
+      title: [{ type: 'text', text: { content: 'Meeting Notes' } }],
+      is_inline: true,
+      properties: {
+        'Meeting Name': { title: {} },
+        'Date': { date: {} },
+        'Text': { rich_text: {} },
+      },
+    })
 
     await hsPatch(`/crm/v3/objects/deals/${dealId}`, {
       properties: { notion_link: notionUrl },

@@ -2,6 +2,7 @@ import { hsPatch } from '../_hubspot.js'
 
 const NOTION_BASE = 'https://api.notion.com/v1'
 const DATABASE_ID = '240f8201-2f2c-80f1-80d3-d7746cca32b0'
+const PORTAL_ID = '243159630'
 
 function notionHeaders() {
   return {
@@ -47,64 +48,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Find the title property name in the target database
     const db = await notionGet(`/databases/${DATABASE_ID}`)
     const titleProp = Object.entries(db.properties).find(([, v]) => v.type === 'title')?.[0]
     if (!titleProp) throw new Error('Could not find title property in Notion database')
 
-    // 2. Create the account page
+    const hsUrl = `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${dealId}`
+
     const newPage = await notionPost('/pages', {
       parent: { database_id: DATABASE_ID },
       properties: {
         [titleProp]: {
           title: [{ type: 'text', text: { content: dealName } }],
         },
-        'Account Type': {
-          select: { name: 'Prospect' },
-        },
-        'Company': {
-          multi_select: [{ name: 'Loop ERP' }],
+        'Hubsport Deal URL': {
+          url: hsUrl,
         },
       },
     })
 
-    const newPageId = newPage.id
     const notionUrl = newPage.url
 
-    // 3. Create child databases matching the template structure (run in parallel)
-    await Promise.all([
-      // Sales Meeting Notes — full-page database with meeting tracking schema
-      notionPost('/databases', {
-        parent: { type: 'page_id', page_id: newPageId },
-        title: [{ type: 'text', text: { content: 'Sales Meeting Notes' } }],
-        is_inline: false,
-        properties: {
-          'Meeting Name': { title: {} },
-          'Meeting Date': { date: {} },
-          'Select': {
-            select: {
-              options: [
-                { name: 'External', color: 'red' },
-                { name: 'Internal', color: 'green' },
-              ],
-            },
-          },
-          'Text': { rich_text: {} },
-        },
-      }),
-
-      // Documents — inline database
-      notionPost('/databases', {
-        parent: { type: 'page_id', page_id: newPageId },
-        title: [{ type: 'text', text: { content: 'Documents' } }],
-        is_inline: true,
-        properties: {
-          'Name': { title: {} },
-        },
-      }),
-    ])
-
-    // 4. Write the Notion link back to the HubSpot deal
     await hsPatch(`/crm/v3/objects/deals/${dealId}`, {
       properties: { notion_link: notionUrl },
     })

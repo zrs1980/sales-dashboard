@@ -75,20 +75,7 @@ export default async function handler(req, res) {
       },
     })
 
-    const newPageId = newPage.id
     const notionUrl = newPage.url
-
-    // Add inline Meeting Notes database matching the Loop Meeting Notes schema
-    await notionPost(`/databases`, {
-      parent: { type: 'page_id', page_id: newPageId },
-      title: [{ type: 'text', text: { content: 'Meeting Notes' } }],
-      is_inline: true,
-      properties: {
-        'Meeting Name': { title: {} },
-        'Date': { date: {} },
-        'Text': { rich_text: {} },
-      },
-    })
 
     await hsPatch(`/crm/v3/objects/leads/${leadId}`, {
       properties: { notion_link: notionUrl },

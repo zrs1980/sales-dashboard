@@ -34,6 +34,10 @@ async function notionPost(path, body) {
   return res.json()
 }
 
+async function notionDelete(path) {
+  await fetch(`${NOTION_BASE}${path}`, { method: 'DELETE', headers: notionHeaders() })
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -75,7 +79,12 @@ export default async function handler(req, res) {
       },
     })
 
+    const newPageId = newPage.id
     const notionUrl = newPage.url
+
+    // Remove any child blocks auto-added by the database's default template
+    const children = await notionGet(`/blocks/${newPageId}/children`)
+    await Promise.all((children.results || []).map(b => notionDelete(`/blocks/${b.id}`)))
 
     await hsPatch(`/crm/v3/objects/leads/${leadId}`, {
       properties: { notion_link: notionUrl },

@@ -2,7 +2,6 @@ import { hsPatch } from '../_hubspot.js'
 
 const NOTION_BASE = 'https://api.notion.com/v1'
 const DATABASE_ID = '240f8201-2f2c-80f1-80d3-d7746cca32b0'
-const PORTAL_ID = '243159630'
 
 function notionHeaders() {
   return {
@@ -56,8 +55,6 @@ export default async function handler(req, res) {
     const titleProp = Object.entries(db.properties).find(([, v]) => v.type === 'title')?.[0]
     if (!titleProp) throw new Error('Could not find title property in Notion database')
 
-    const hsUrl = `https://app-na2.hubspot.com/contacts/${PORTAL_ID}/record/0-136/${leadId}`
-
     const newPage = await notionPost('/pages', {
       parent: { database_id: DATABASE_ID },
       properties: {
@@ -73,8 +70,8 @@ export default async function handler(req, res) {
         'Stage': {
           multi_select: [{ name: 'New Lead' }],
         },
-        'Hubsport Deal URL': {
-          url: hsUrl,
+        'Create Summary': {
+          checkbox: false,
         },
       },
     })

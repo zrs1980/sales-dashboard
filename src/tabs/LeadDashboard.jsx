@@ -407,15 +407,17 @@ export default function LeadDashboard({ data, loading }) {
     )?.[0]
   , [pipelineMap])
 
+  const activeLoopStageIds = useMemo(() =>
+    Object.entries(stageMap)
+      .filter(([, label]) => ACTIVE_LOOP_STAGE_LABELS.has(label))
+      .map(([id]) => id)
+  , [stageMap])
+
   const isActiveLoopPreset = useMemo(() => {
     if (!loopPipelineId) return false
     if (pipelineFilter.length !== 1 || pipelineFilter[0] !== loopPipelineId) return false
-    const activeStageIds = leads
-      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
-      .map(l => l.properties?.hs_pipeline_stage)
-      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
-    return activeStageIds.length === stageFilter.length && activeStageIds.every(id => stageFilter.includes(id))
-  }, [pipelineFilter, stageFilter, pipelineMap, stageMap, leads, loopPipelineId])
+    return activeLoopStageIds.length === stageFilter.length && activeLoopStageIds.every(id => stageFilter.includes(id))
+  }, [pipelineFilter, stageFilter, loopPipelineId, activeLoopStageIds])
 
   // All hooks done — safe to return early now
   if (loading && !data) return <div className="state-box">Loading leads…</div>
@@ -450,12 +452,8 @@ export default function LeadDashboard({ data, loading }) {
   }
 
   function applyActiveLoopPreset() {
-    const stageIds = leads
-      .filter(l => l.properties?.hs_pipeline === loopPipelineId)
-      .map(l => l.properties?.hs_pipeline_stage)
-      .filter((sid, i, arr) => sid && ACTIVE_LOOP_STAGE_LABELS.has(stageMap[sid]) && arr.indexOf(sid) === i)
     if (loopPipelineId) setPipelineFilter([loopPipelineId])
-    setStageFilter(stageIds)
+    setStageFilter(activeLoopStageIds)
     setPage(1)
   }
 

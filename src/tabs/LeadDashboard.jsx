@@ -401,17 +401,21 @@ export default function LeadDashboard({ data, loading }) {
     })
   }, [filtered, sortKey, sortDir, stageMap])
 
-  const loopPipelineId = useMemo(() =>
-    Object.entries(pipelineMap).find(([, label]) =>
+  const loopPipelineId = useMemo(() => {
+    const entry = Object.entries(pipelineMap).find(([, label]) =>
       label?.toLowerCase().includes('loop sql') || label?.toLowerCase() === 'loop'
-    )?.[0]
-  , [pipelineMap])
+    )
+    console.log('[ActiveLoop] pipelineMap:', pipelineMap, '→ loopPipelineId:', entry?.[0])
+    return entry?.[0]
+  }, [pipelineMap])
 
-  const activeLoopStageIds = useMemo(() =>
-    Object.entries(stageMap)
+  const activeLoopStageIds = useMemo(() => {
+    const ids = Object.entries(stageMap)
       .filter(([, label]) => ACTIVE_LOOP_STAGE_LABELS.has(label))
       .map(([id]) => id)
-  , [stageMap])
+    console.log('[ActiveLoop] stageMap:', stageMap, '→ activeLoopStageIds:', ids)
+    return ids
+  }, [stageMap])
 
   const isActiveLoopPreset = useMemo(() => {
     if (!loopPipelineId) return false

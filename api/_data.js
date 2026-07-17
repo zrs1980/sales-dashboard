@@ -608,6 +608,16 @@ export async function fetchAllNotes() {
   return { notes: records, properties: propDefs, truncated }
 }
 
+export async function fetchAllMeetingProperties() {
+  return fetchAllObjectProperties('meetings')
+}
+
+export async function fetchAllMeetingsFull() {
+  const propDefs = await fetchAllMeetingProperties()
+  const { records, truncated } = await fetchAllObjectsFull('meetings', propDefs, { pinnedFirst: 'hs_meeting_title' })
+  return { meetings: records, properties: propDefs, truncated }
+}
+
 async function batchCompanyNames(objectType, objectIds) {
   if (!objectIds.length) return {}
   try {

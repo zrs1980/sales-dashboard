@@ -65,7 +65,7 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-export default function EmailExports() {
+export default function EmailExports({ title = 'Emails', cutoff, mode }) {
   const [emails, setEmails] = useState([])
   const [properties, setProperties] = useState([])
   const [truncated, setTruncated] = useState(false)
@@ -95,6 +95,18 @@ export default function EmailExports() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Split into "before cutoff" / "on or after cutoff" tabs by the email's engagement
+  // timestamp (hs_timestamp) — the same date property calls/meetings/tasks use.
+  const dateFiltered = useMemo(() => {
+    if (!cutoff || !mode) return emails
+    const cutoffMs = new Date(cutoff + 'T00:00:00Z').getTime()
+    return emails.filter(email => {
+      const d = parseTs(email.properties?.hs_timestamp)
+      if (!d) return false
+      return mode === 'before' ? d.getTime() < cutoffMs : d.getTime() >= cutoffMs
+    })
+  }, [emails, cutoff, mode])
 
   // Raw HubSpot property columns (subject first), then derived association columns
   const propColumns = useMemo(() => {
@@ -138,11 +150,11 @@ export default function EmailExports() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return emails
-    return emails.filter(email =>
+    if (!q) return dateFiltered
+    return dateFiltered.filter(email =>
       columns.some(col => String(col.get(email) || '').toLowerCase().includes(q))
     )
-  }, [emails, columns, search])
+  }, [dateFiltered, columns, search])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -157,7 +169,8 @@ export default function EmailExports() {
     const header = columns.map(c => c.label)
     const rows = filtered.map(email => columns.map(c => c.get(email)))
     const stamp = new Date().toISOString().split('T')[0]
-    downloadCsv(`hubspot-emails-${stamp}.csv`, [header, ...rows])
+    const suffix = mode === 'before' ? '-pre-2026' : mode === 'onOrAfter' ? '-post-2025' : ''
+    downloadCsv(`hubspot-emails${suffix}-${stamp}.csv`, [header, ...rows])
   }
 
   if (loading && !emails.length) {
@@ -168,13 +181,20 @@ export default function EmailExports() {
     return <div className="state-box error">Error loading emails: {error}</div>
   }
 
+  const cutoffLabel = cutoff
+    ? new Date(cutoff + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : null
+  const rangeSub = cutoffLabel
+    ? mode === 'before' ? `Every HubSpot email before ${cutoffLabel}, all fields` : `Every HubSpot email on or after ${cutoffLabel}, all fields`
+    : 'Every HubSpot email, all fields'
+
   return (
     <div className="panel">
       <div className="panel-header">
         <div>
-          <div className="panel-title">Emails</div>
+          <div className="panel-title">{title}</div>
           <div className="panel-sub">
-            {lastLoadedStr ? `Loaded at ${lastLoadedStr}` : 'Every HubSpot email, all fields'}
+            {lastLoadedStr ? `Loaded at ${lastLoadedStr} — ${rangeSub}` : rangeSub}
             {truncated && ' — result set was truncated by HubSpot paging limits'}
           </div>
         </div>
@@ -215,9 +235,9 @@ export default function EmailExports() {
           style={{ minWidth: 220, fontFamily: 'inherit' }}
         />
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-          {filtered.length === emails.length
-            ? `${emails.length} email${emails.length !== 1 ? 's' : ''}`
-            : `${filtered.length} of ${emails.length} emails`}
+          {filtered.length === dateFiltered.length
+            ? `${dateFiltered.length} email${dateFiltered.length !== 1 ? 's' : ''}`
+            : `${filtered.length} of ${dateFiltered.length} emails`}
         </span>
       </div>
 

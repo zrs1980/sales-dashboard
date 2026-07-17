@@ -25,19 +25,24 @@ const TABS = [
   { id: 'notes',    label: 'Notes' },
   { id: 'meetingExports', label: 'Meetings' },
   { id: 'callExports', label: 'Calls' },
-  { id: 'emailExports', label: 'Emails' },
+  { id: 'emailExportsPre', label: 'Emails (Prior to 12/31/25)' },
+  { id: 'emailExportsPost', label: 'Emails (Post 12/31/25)' },
   { id: 'communicationExports', label: 'Communications' },
 ]
 
-// Tabs that fetch their own data instead of relying on the global /api/refresh payload
+const EMAIL_CUTOFF = '2025-12-31'
+
+// Tabs that fetch their own data instead of relying on the global /api/refresh payload.
+// Each entry is a thunk so tabs needing props (like the two date-split Emails tabs) can pass them.
 const SELF_FETCH_TABS = {
-  tasks: MyTasks,
-  taskExports: TaskExports,
-  notes: NoteExports,
-  meetingExports: MeetingExports,
-  callExports: CallExports,
-  emailExports: EmailExports,
-  communicationExports: CommunicationExports,
+  tasks: () => <MyTasks />,
+  taskExports: () => <TaskExports />,
+  notes: () => <NoteExports />,
+  meetingExports: () => <MeetingExports />,
+  callExports: () => <CallExports />,
+  emailExportsPre: () => <EmailExports title="Emails (Prior to 12/31/25)" cutoff={EMAIL_CUTOFF} mode="before" />,
+  emailExportsPost: () => <EmailExports title="Emails (Post 12/31/25)" cutoff={EMAIL_CUTOFF} mode="onOrAfter" />,
+  communicationExports: () => <CommunicationExports />,
 }
 
 export default function App() {
@@ -120,7 +125,7 @@ export default function App() {
 
       <div className="content" style={{ display: SELF_FETCH_TABS[activeTab] ? 'block' : undefined }}>
         {SELF_FETCH_TABS[activeTab] ? (
-          (() => { const Tab = SELF_FETCH_TABS[activeTab]; return <Tab /> })()
+          SELF_FETCH_TABS[activeTab]()
         ) : (data || loading) ? (
           <>
             {activeTab === 'loop' && <LoopPipeline data={data?.loop} loading={loading} />}

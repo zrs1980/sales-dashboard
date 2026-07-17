@@ -9,6 +9,7 @@ import MyTasks from './tabs/MyTasks.jsx'
 import TaskExports from './tabs/TaskExports.jsx'
 import NoteExports from './tabs/NoteExports.jsx'
 import MeetingExports from './tabs/MeetingExports.jsx'
+import CallExports from './tabs/CallExports.jsx'
 
 const TABS = [
   { id: 'loop',     label: 'Loop ERP Pipeline' },
@@ -21,10 +22,17 @@ const TABS = [
   { id: 'taskExports', label: 'Task Exports' },
   { id: 'notes',    label: 'Notes' },
   { id: 'meetingExports', label: 'Meetings' },
+  { id: 'callExports', label: 'Calls' },
 ]
 
 // Tabs that fetch their own data instead of relying on the global /api/refresh payload
-const SELF_FETCH_TABS = { tasks: MyTasks, taskExports: TaskExports, notes: NoteExports, meetingExports: MeetingExports }
+const SELF_FETCH_TABS = {
+  tasks: MyTasks,
+  taskExports: TaskExports,
+  notes: NoteExports,
+  meetingExports: MeetingExports,
+  callExports: CallExports,
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('loop')

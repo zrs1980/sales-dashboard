@@ -628,6 +628,16 @@ export async function fetchAllCallsFull() {
   return { calls: records, properties: propDefs, truncated }
 }
 
+export async function fetchAllEmailProperties() {
+  return fetchAllObjectProperties('emails')
+}
+
+export async function fetchAllEmailsFull() {
+  const propDefs = await fetchAllEmailProperties()
+  const { records, truncated } = await fetchAllObjectsFull('emails', propDefs, { pinnedFirst: 'hs_email_subject' })
+  return { emails: records, properties: propDefs, truncated }
+}
+
 async function batchCompanyNames(objectType, objectIds) {
   if (!objectIds.length) return {}
   try {

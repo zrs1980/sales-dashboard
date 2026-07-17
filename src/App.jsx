@@ -10,6 +10,7 @@ import TaskExports from './tabs/TaskExports.jsx'
 import NoteExports from './tabs/NoteExports.jsx'
 import MeetingExports from './tabs/MeetingExports.jsx'
 import CallExports from './tabs/CallExports.jsx'
+import EmailExports from './tabs/EmailExports.jsx'
 
 const TABS = [
   { id: 'loop',     label: 'Loop ERP Pipeline' },
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'notes',    label: 'Notes' },
   { id: 'meetingExports', label: 'Meetings' },
   { id: 'callExports', label: 'Calls' },
+  { id: 'emailExports', label: 'Emails' },
 ]
 
 // Tabs that fetch their own data instead of relying on the global /api/refresh payload
@@ -32,6 +34,7 @@ const SELF_FETCH_TABS = {
   notes: NoteExports,
   meetingExports: MeetingExports,
   callExports: CallExports,
+  emailExports: EmailExports,
 }
 
 export default function App() {

@@ -509,6 +509,81 @@ async function fetchOwners() {
   }
 }
 
+// Full task property list + every task in the portal, all fields, for the Task Exports tab
+export async function fetchAllTaskProperties() {
+  const data = await hsGet('/crm/v3/properties/tasks')
+  return (data.results || []).filter(p => !p.hidden)
+}
+
+export async function fetchAllTasks() {
+  const propDefs = await fetchAllTaskProperties()
+  const propNames = propDefs.map(p => p.name)
+  if (!propNames.includes('hs_task_subject')) propNames.unshift('hs_task_subject')
+
+  // Search only for IDs first (properties are fetched via batch/read below) —
+  // search's implicit past-only window doesn't apply when there's no timestamp filter.
+  const ids = []
+  let after = undefined
+  let truncated = false
+  while (true) {
+    let data
+    try {
+      data = await hsPost('/crm/v3/objects/tasks/search', {
+        filterGroups: [],
+        sorts: [{ propertyName: 'hs_lastmodifieddate', direction: 'DESCENDING' }],
+        properties: ['hs_object_id'],
+        limit: 100,
+        ...(after ? { after } : {}),
+      })
+    } catch {
+      truncated = true
+      break
+    }
+    ids.push(...(data.results || []).map(r => r.id))
+    if (!data.paging?.next?.after) break
+    after = data.paging.next.after
+    if (ids.length >= 20000) { truncated = true; break } // safety valve, not a data cap
+  }
+
+  if (!ids.length) return { tasks: [], properties: propDefs, truncated }
+
+  const tasksById = {}
+  for (const batch of chunk(ids, 100)) {
+    const data = await hsPost('/crm/v3/objects/tasks/batch/read', {
+      inputs: batch.map(id => ({ id })),
+      properties: propNames,
+    })
+    for (const t of data.results || []) tasksById[t.id] = t
+  }
+  const orderedTasks = ids.map(id => tasksById[id]).filter(Boolean)
+
+  const [contactAssoc, dealAssoc, companyAssoc] = await Promise.all([
+    batchAssocChunked('tasks', 'contacts', ids),
+    batchAssocChunked('tasks', 'deals', ids),
+    batchAssocChunked('tasks', 'companies', ids),
+  ])
+  const contactIds = new Set(Object.values(contactAssoc).flat())
+  const dealIds    = new Set(Object.values(dealAssoc).flat())
+  const companyIds = new Set(Object.values(companyAssoc).flat())
+
+  const [contacts, deals, companies, owners] = await Promise.all([
+    batchReadProps('contacts', contactIds, ['firstname', 'lastname', 'email']),
+    batchReadProps('deals', dealIds, ['dealname']),
+    batchReadProps('companies', companyIds, ['name']),
+    fetchOwners(),
+  ])
+
+  const tasks = orderedTasks.map(t => ({
+    ...t,
+    ownerName: owners.byOwnerId[t.properties?.hubspot_owner_id] || '',
+    contacts:  (contactAssoc[t.id] || []).map(id => ({ id, ...(contacts[id] || {}) })),
+    deals:     (dealAssoc[t.id]    || []).map(id => ({ id, ...(deals[id]    || {}) })),
+    companies: (companyAssoc[t.id] || []).map(id => ({ id, ...(companies[id] || {}) })),
+  }))
+
+  return { tasks, properties: propDefs, truncated }
+}
+
 async function batchCompanyNames(objectType, objectIds) {
   if (!objectIds.length) return {}
   try {

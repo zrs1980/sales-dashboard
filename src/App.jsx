@@ -6,6 +6,7 @@ import SdrActivities from './tabs/SdrActivities.jsx'
 import SalesMeetings from './tabs/SalesMeetings.jsx'
 import LeadDashboard from './tabs/LeadDashboard.jsx'
 import MyTasks from './tabs/MyTasks.jsx'
+import TaskExports from './tabs/TaskExports.jsx'
 
 const TABS = [
   { id: 'loop',     label: 'Loop ERP Pipeline' },
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'meetings', label: 'Sales Meetings' },
   { id: 'leads',    label: 'Lead Dashboard' },
   { id: 'tasks',    label: 'My Tasks' },
+  { id: 'taskExports', label: 'Task Exports' },
 ]
 
 export default function App() {
@@ -95,9 +97,11 @@ export default function App() {
 
       {!error && !data && !loading && null}
 
-      <div className="content" style={{ display: activeTab === 'tasks' ? 'block' : undefined }}>
+      <div className="content" style={{ display: (activeTab === 'tasks' || activeTab === 'taskExports') ? 'block' : undefined }}>
         {activeTab === 'tasks' ? (
           <MyTasks />
+        ) : activeTab === 'taskExports' ? (
+          <TaskExports />
         ) : (data || loading) ? (
           <>
             {activeTab === 'loop' && <LoopPipeline data={data?.loop} loading={loading} />}

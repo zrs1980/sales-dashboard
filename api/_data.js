@@ -509,16 +509,16 @@ async function fetchOwners() {
   }
 }
 
-// Full task property list + every task in the portal, all fields, for the Task Exports tab
-export async function fetchAllTaskProperties() {
-  const data = await hsGet('/crm/v3/properties/tasks')
+// Shared by the Task Exports and Notes tabs: full property list + every record
+// of a given CRM object type, all fields, plus associated contact/deal/company/lead.
+export async function fetchAllObjectProperties(objectType) {
+  const data = await hsGet(`/crm/v3/properties/${objectType}`)
   return (data.results || []).filter(p => !p.hidden)
 }
 
-export async function fetchAllTasks() {
-  const propDefs = await fetchAllTaskProperties()
+export async function fetchAllObjectsFull(objectType, propDefs, { pinnedFirst } = {}) {
   const propNames = propDefs.map(p => p.name)
-  if (!propNames.includes('hs_task_subject')) propNames.unshift('hs_task_subject')
+  if (pinnedFirst && !propNames.includes(pinnedFirst)) propNames.unshift(pinnedFirst)
 
   // Search only for IDs first (properties are fetched via batch/read below) —
   // search's implicit past-only window doesn't apply when there's no timestamp filter.
@@ -528,7 +528,7 @@ export async function fetchAllTasks() {
   while (true) {
     let data
     try {
-      data = await hsPost('/crm/v3/objects/tasks/search', {
+      data = await hsPost(`/crm/v3/objects/${objectType}/search`, {
         filterGroups: [],
         sorts: [{ propertyName: 'hs_lastmodifieddate', direction: 'DESCENDING' }],
         properties: ['hs_object_id'],
@@ -545,23 +545,23 @@ export async function fetchAllTasks() {
     if (ids.length >= 20000) { truncated = true; break } // safety valve, not a data cap
   }
 
-  if (!ids.length) return { tasks: [], properties: propDefs, truncated }
+  if (!ids.length) return { records: [], truncated }
 
-  const tasksById = {}
+  const recordsById = {}
   for (const batch of chunk(ids, 100)) {
-    const data = await hsPost('/crm/v3/objects/tasks/batch/read', {
+    const data = await hsPost(`/crm/v3/objects/${objectType}/batch/read`, {
       inputs: batch.map(id => ({ id })),
       properties: propNames,
     })
-    for (const t of data.results || []) tasksById[t.id] = t
+    for (const r of data.results || []) recordsById[r.id] = r
   }
-  const orderedTasks = ids.map(id => tasksById[id]).filter(Boolean)
+  const orderedRecords = ids.map(id => recordsById[id]).filter(Boolean)
 
   const [contactAssoc, dealAssoc, companyAssoc, leadAssoc] = await Promise.all([
-    batchAssocChunked('tasks', 'contacts', ids),
-    batchAssocChunked('tasks', 'deals', ids),
-    batchAssocChunked('tasks', 'companies', ids),
-    batchAssocChunked('tasks', 'leads', ids),
+    batchAssocChunked(objectType, 'contacts', ids),
+    batchAssocChunked(objectType, 'deals', ids),
+    batchAssocChunked(objectType, 'companies', ids),
+    batchAssocChunked(objectType, 'leads', ids),
   ])
   const contactIds = new Set(Object.values(contactAssoc).flat())
   const dealIds    = new Set(Object.values(dealAssoc).flat())
@@ -576,16 +576,36 @@ export async function fetchAllTasks() {
     fetchOwners(),
   ])
 
-  const tasks = orderedTasks.map(t => ({
-    ...t,
-    ownerName: owners.byOwnerId[t.properties?.hubspot_owner_id] || '',
-    contacts:  (contactAssoc[t.id] || []).map(id => ({ id, ...(contacts[id] || {}) })),
-    deals:     (dealAssoc[t.id]    || []).map(id => ({ id, ...(deals[id]    || {}) })),
-    companies: (companyAssoc[t.id] || []).map(id => ({ id, ...(companies[id] || {}) })),
-    leads:     (leadAssoc[t.id]    || []).map(id => ({ id, ...(leads[id]    || {}) })),
+  const records = orderedRecords.map(r => ({
+    ...r,
+    ownerName: owners.byOwnerId[r.properties?.hubspot_owner_id] || '',
+    contacts:  (contactAssoc[r.id] || []).map(id => ({ id, ...(contacts[id] || {}) })),
+    deals:     (dealAssoc[r.id]    || []).map(id => ({ id, ...(deals[id]    || {}) })),
+    companies: (companyAssoc[r.id] || []).map(id => ({ id, ...(companies[id] || {}) })),
+    leads:     (leadAssoc[r.id]    || []).map(id => ({ id, ...(leads[id]    || {}) })),
   }))
 
-  return { tasks, properties: propDefs, truncated }
+  return { records, truncated }
+}
+
+export async function fetchAllTaskProperties() {
+  return fetchAllObjectProperties('tasks')
+}
+
+export async function fetchAllTasks() {
+  const propDefs = await fetchAllTaskProperties()
+  const { records, truncated } = await fetchAllObjectsFull('tasks', propDefs, { pinnedFirst: 'hs_task_subject' })
+  return { tasks: records, properties: propDefs, truncated }
+}
+
+export async function fetchAllNoteProperties() {
+  return fetchAllObjectProperties('notes')
+}
+
+export async function fetchAllNotes() {
+  const propDefs = await fetchAllNoteProperties()
+  const { records, truncated } = await fetchAllObjectsFull('notes', propDefs, { pinnedFirst: 'hs_note_body' })
+  return { notes: records, properties: propDefs, truncated }
 }
 
 async function batchCompanyNames(objectType, objectIds) {

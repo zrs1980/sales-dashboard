@@ -108,8 +108,20 @@ export default function TaskExports() {
         return [c.firstname, c.lastname].filter(Boolean).join(' ') || c.email || ''
       },
     },
+    { key: '_contactId', label: 'Contact ID', get: t => t.contacts?.[0]?.id || '' },
     { key: '_deal', label: 'Associated Deal', get: t => t.deals?.[0]?.dealname || '' },
+    { key: '_dealId', label: 'Deal ID', get: t => t.deals?.[0]?.id || '' },
     { key: '_company', label: 'Associated Company', get: t => t.companies?.[0]?.name || '' },
+    { key: '_companyId', label: 'Company ID', get: t => t.companies?.[0]?.id || '' },
+    {
+      key: '_lead', label: 'Associated Lead',
+      get: t => {
+        const l = t.leads?.[0]
+        if (!l) return ''
+        return l.hs_lead_name || l.hs_associated_company_name || ''
+      },
+    },
+    { key: '_leadId', label: 'Lead ID', get: t => t.leads?.[0]?.id || '' },
   ], [])
 
   const columns = useMemo(() => [...propColumns, ...derivedColumns], [propColumns, derivedColumns])

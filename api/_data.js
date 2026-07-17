@@ -557,19 +557,22 @@ export async function fetchAllTasks() {
   }
   const orderedTasks = ids.map(id => tasksById[id]).filter(Boolean)
 
-  const [contactAssoc, dealAssoc, companyAssoc] = await Promise.all([
+  const [contactAssoc, dealAssoc, companyAssoc, leadAssoc] = await Promise.all([
     batchAssocChunked('tasks', 'contacts', ids),
     batchAssocChunked('tasks', 'deals', ids),
     batchAssocChunked('tasks', 'companies', ids),
+    batchAssocChunked('tasks', 'leads', ids),
   ])
   const contactIds = new Set(Object.values(contactAssoc).flat())
   const dealIds    = new Set(Object.values(dealAssoc).flat())
   const companyIds = new Set(Object.values(companyAssoc).flat())
+  const leadIds    = new Set(Object.values(leadAssoc).flat())
 
-  const [contacts, deals, companies, owners] = await Promise.all([
+  const [contacts, deals, companies, leads, owners] = await Promise.all([
     batchReadProps('contacts', contactIds, ['firstname', 'lastname', 'email']),
     batchReadProps('deals', dealIds, ['dealname']),
     batchReadProps('companies', companyIds, ['name']),
+    batchReadProps('leads', leadIds, ['hs_lead_name', 'hs_associated_company_name']),
     fetchOwners(),
   ])
 
@@ -579,6 +582,7 @@ export async function fetchAllTasks() {
     contacts:  (contactAssoc[t.id] || []).map(id => ({ id, ...(contacts[id] || {}) })),
     deals:     (dealAssoc[t.id]    || []).map(id => ({ id, ...(deals[id]    || {}) })),
     companies: (companyAssoc[t.id] || []).map(id => ({ id, ...(companies[id] || {}) })),
+    leads:     (leadAssoc[t.id]    || []).map(id => ({ id, ...(leads[id]    || {}) })),
   }))
 
   return { tasks, properties: propDefs, truncated }

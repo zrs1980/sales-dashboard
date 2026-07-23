@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 
 const PORTAL_ID = '243159630'
 const PAGE_SIZE = 50
@@ -79,7 +79,13 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/all-emails')
+      // The date split is done server-side (independent query per tab, scoped by
+      // hs_timestamp) so each stays under HubSpot's 10k search cap — no client filtering.
+      const params = new URLSearchParams()
+      if (mode) params.set('mode', mode)
+      if (cutoff) params.set('cutoff', cutoff)
+      const qs = params.toString()
+      const res = await fetch(`/api/all-emails${qs ? `?${qs}` : ''}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || `Error ${res.status}`)
       setEmails(json.emails || [])
@@ -94,19 +100,11 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
     }
   }
 
-  useEffect(() => { load() }, [])
+  // Manually triggered — this is a heavy query, so the user loads it on demand via the
+  // button rather than auto-fetching every time the tab is opened.
 
-  // Split into "before cutoff" / "on or after cutoff" tabs by the email's engagement
-  // timestamp (hs_timestamp) — the same date property calls/meetings/tasks use.
-  const dateFiltered = useMemo(() => {
-    if (!cutoff || !mode) return emails
-    const cutoffMs = new Date(cutoff + 'T00:00:00Z').getTime()
-    return emails.filter(email => {
-      const d = parseTs(email.properties?.hs_timestamp)
-      if (!d) return false
-      return mode === 'before' ? d.getTime() < cutoffMs : d.getTime() >= cutoffMs
-    })
-  }, [emails, cutoff, mode])
+  // Emails already arrive scoped to this tab's date range from the server.
+  const dateFiltered = emails
 
   // Raw HubSpot property columns (subject first), then derived association columns
   const propColumns = useMemo(() => {
@@ -173,20 +171,71 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
     downloadCsv(`hubspot-emails${suffix}-${stamp}.csv`, [header, ...rows])
   }
 
-  if (loading && !emails.length) {
-    return <div className="state-box">Loading emails…</div>
-  }
-
-  if (error) {
-    return <div className="state-box error">Error loading emails: {error}</div>
-  }
-
   const cutoffLabel = cutoff
     ? new Date(cutoff + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null
   const rangeSub = cutoffLabel
     ? mode === 'before' ? `Every HubSpot email before ${cutoffLabel}, all fields` : `Every HubSpot email on or after ${cutoffLabel}, all fields`
     : 'Every HubSpot email, all fields'
+
+  const loadLabel = loading ? '↻ Loading…' : lastLoaded ? '↻ Reload' : '⬇ Load emails'
+
+  // Manual-load: until the user clicks Load, show a prompt instead of firing the query.
+  if (!lastLoaded && !error) {
+    return (
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <div className="panel-title">{title}</div>
+            <div className="panel-sub">{rangeSub}</div>
+          </div>
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              fontSize: 12, padding: '5px 12px', borderRadius: 6,
+              border: 'none', background: 'var(--accent)', color: '#fff',
+              cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loadLabel}
+          </button>
+        </div>
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          {loading
+            ? 'Loading emails from HubSpot…'
+            : 'This is a large dataset — click "Load emails" to fetch it on demand.'}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <div className="panel-title">{title}</div>
+            <div className="panel-sub">{rangeSub}</div>
+          </div>
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              fontSize: 12, padding: '5px 12px', borderRadius: 6,
+              border: 'none', background: 'var(--accent)', color: '#fff',
+              cursor: loading ? 'wait' : 'pointer', fontWeight: 600,
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loadLabel}
+          </button>
+        </div>
+        <div className="state-box error">Error loading emails: {error}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="panel">
@@ -221,7 +270,7 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {loading ? '↻ Loading…' : '↻ Refresh'}
+            {loadLabel}
           </button>
         </div>
       </div>

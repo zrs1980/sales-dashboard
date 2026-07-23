@@ -516,12 +516,15 @@ export async function fetchAllObjectProperties(objectType) {
   return (data.results || []).filter(p => !p.hidden)
 }
 
-export async function fetchAllObjectsFull(objectType, propDefs, { pinnedFirst } = {}) {
+export async function fetchAllObjectsFull(objectType, propDefs, { pinnedFirst, filterGroups } = {}) {
   const propNames = propDefs.map(p => p.name)
   if (pinnedFirst && !propNames.includes(pinnedFirst)) propNames.unshift(pinnedFirst)
 
   // Search only for IDs first (properties are fetched via batch/read below) —
   // search's implicit past-only window doesn't apply when there's no timestamp filter.
+  // Optional filterGroups let callers scope the query (e.g. a hs_timestamp date range)
+  // so a large object type can be split into sub-queries that each stay under HubSpot's
+  // hard 10,000-record search ceiling.
   const ids = []
   let after = undefined
   let truncated = false
@@ -529,7 +532,7 @@ export async function fetchAllObjectsFull(objectType, propDefs, { pinnedFirst } 
     let data
     try {
       data = await hsPost(`/crm/v3/objects/${objectType}/search`, {
-        filterGroups: [],
+        filterGroups: filterGroups || [],
         sorts: [{ propertyName: 'hs_lastmodifieddate', direction: 'DESCENDING' }],
         properties: ['hs_object_id'],
         limit: 100,
@@ -632,9 +635,24 @@ export async function fetchAllEmailProperties() {
   return fetchAllObjectProperties('emails')
 }
 
-export async function fetchAllEmailsFull() {
+// Emails are the highest-volume engagement, so the two dashboard tabs each fetch an
+// independent, server-side date-scoped query (before / on-or-after a cutoff) instead of
+// pulling everything and splitting client-side. This keeps each query under HubSpot's
+// hard 10,000-record search ceiling so neither side gets silently truncated.
+export async function fetchAllEmailsFull({ mode, cutoff } = {}) {
   const propDefs = await fetchAllEmailProperties()
-  const { records, truncated } = await fetchAllObjectsFull('emails', propDefs, { pinnedFirst: 'hs_email_subject' })
+
+  let filterGroups
+  if (mode && cutoff) {
+    const cutoffMs = new Date(cutoff + 'T00:00:00Z').getTime()
+    const operator = mode === 'before' ? 'LT' : 'GTE'
+    filterGroups = [{ filters: [{ propertyName: 'hs_timestamp', operator, value: String(cutoffMs) }] }]
+  }
+
+  const { records, truncated } = await fetchAllObjectsFull('emails', propDefs, {
+    pinnedFirst: 'hs_email_subject',
+    filterGroups,
+  })
   return { emails: records, properties: propDefs, truncated }
 }
 

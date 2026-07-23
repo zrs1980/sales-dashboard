@@ -16,6 +16,36 @@ function isLongTextField(name) {
   return /_(body|text|html)$/.test(name || '')
 }
 
+// Convert an email body (HTML or plain text) into readable text with real line breaks
+// preserved, instead of collapsing everything onto one line. Block-level tags and <br>
+// become newlines; entities are decoded; runs of spaces/tabs collapse but newlines stay.
+function bodyToText(raw) {
+  let s = String(raw).replace(/\r\n?/g, '\n')
+  // Drop content that never renders as body text
+  s = s.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+  // <br> and closing block tags → newline; opening block tags → newline (paragraph breaks)
+  s = s
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|tr|li|ul|ol|h[1-6]|blockquote|table)\s*>/gi, '\n')
+    .replace(/<\s*(p|div|tr|li|h[1-6]|blockquote)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '') // strip any remaining tags
+  // Decode the common HTML entities
+  s = s
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+  // Collapse only spaces/tabs (keep newlines), trim each line, cap blank-line runs at one
+  return s
+    .replace(/[ \t\f\v]+/g, ' ')
+    .split('\n').map(line => line.trim()).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function formatPropValue(propDef, raw) {
   if (raw == null || raw === '') return ''
   if (propDef?.type === 'enumeration' && propDef.options?.length) {
@@ -30,7 +60,7 @@ function formatPropValue(propDef, raw) {
     if (d) return propDef.type === 'date' ? d.toLocaleDateString() : d.toLocaleString()
   }
   if (isLongTextField(propDef?.name)) {
-    return String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    return bodyToText(raw)
   }
   return String(raw)
 }
@@ -313,12 +343,17 @@ export default function EmailExports({ title = 'Emails', start, end, rangeLabel,
                         title={col.wide ? val : undefined}
                         style={{
                           fontSize: 12, color: 'var(--text-secondary)',
-                          ...(col.wide
-                            ? { maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-                            : { whiteSpace: 'nowrap' }),
+                          ...(col.wide ? { verticalAlign: 'top' } : { whiteSpace: 'nowrap' }),
                         }}
                       >
-                        {val || <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                        {col.wide
+                          ? (val
+                              ? <div style={{
+                                  maxWidth: 360, maxHeight: 160, overflow: 'auto',
+                                  whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4,
+                                }}>{val}</div>
+                              : <span style={{ color: 'var(--text-muted)' }}>—</span>)
+                          : (val || <span style={{ color: 'var(--text-muted)' }}>—</span>)}
                       </td>
                     )
                   })}

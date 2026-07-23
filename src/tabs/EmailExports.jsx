@@ -65,7 +65,10 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-export default function EmailExports({ title = 'Emails', cutoff, mode }) {
+// start / end are ISO dates (YYYY-MM-DD), interpreted as [start, end) on hs_timestamp
+// (start inclusive, end exclusive). Either may be omitted for an open-ended bound.
+// rangeLabel is the human phrase for the subtitle; fileSuffix names the CSV export.
+export default function EmailExports({ title = 'Emails', start, end, rangeLabel, fileSuffix = '' }) {
   const [emails, setEmails] = useState([])
   const [properties, setProperties] = useState([])
   const [truncated, setTruncated] = useState(false)
@@ -82,8 +85,8 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
       // The date split is done server-side (independent query per tab, scoped by
       // hs_timestamp) so each stays under HubSpot's 10k search cap — no client filtering.
       const params = new URLSearchParams()
-      if (mode) params.set('mode', mode)
-      if (cutoff) params.set('cutoff', cutoff)
+      if (start) params.set('start', start)
+      if (end) params.set('end', end)
       const qs = params.toString()
       const res = await fetch(`/api/all-emails${qs ? `?${qs}` : ''}`)
       const json = await res.json()
@@ -156,8 +159,8 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const start = (safePage - 1) * PAGE_SIZE
-  const pageRows = filtered.slice(start, start + PAGE_SIZE)
+  const pageStart = (safePage - 1) * PAGE_SIZE
+  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE)
 
   const lastLoadedStr = lastLoaded
     ? lastLoaded.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -167,15 +170,12 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
     const header = columns.map(c => c.label)
     const rows = filtered.map(email => columns.map(c => c.get(email)))
     const stamp = new Date().toISOString().split('T')[0]
-    const suffix = mode === 'before' ? '-pre-2026' : mode === 'onOrAfter' ? '-post-2025' : ''
+    const suffix = fileSuffix ? `-${fileSuffix}` : ''
     downloadCsv(`hubspot-emails${suffix}-${stamp}.csv`, [header, ...rows])
   }
 
-  const cutoffLabel = cutoff
-    ? new Date(cutoff + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-    : null
-  const rangeSub = cutoffLabel
-    ? mode === 'before' ? `Every HubSpot email before ${cutoffLabel}, all fields` : `Every HubSpot email on or after ${cutoffLabel}, all fields`
+  const rangeSub = rangeLabel
+    ? `Every HubSpot email ${rangeLabel}, all fields`
     : 'Every HubSpot email, all fields'
 
   const loadLabel = loading ? '↻ Loading…' : lastLoaded ? '↻ Reload' : '⬇ Load emails'
@@ -355,7 +355,7 @@ export default function EmailExports({ title = 'Emails', cutoff, mode }) {
 
       <div className="pagination">
         <span className="pagination-info">
-          Showing {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length} emails
+          Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length} emails
         </span>
         <button className="pagination-btn" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
         <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Page {safePage} of {totalPages}</span>

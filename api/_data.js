@@ -639,15 +639,21 @@ export async function fetchAllEmailProperties() {
 // independent, server-side date-scoped query (before / on-or-after a cutoff) instead of
 // pulling everything and splitting client-side. This keeps each query under HubSpot's
 // hard 10,000-record search ceiling so neither side gets silently truncated.
-export async function fetchAllEmailsFull({ mode, cutoff } = {}) {
+// start / end are ISO dates (YYYY-MM-DD). They map to a half-open hs_timestamp window
+// [start, end): start is GTE-inclusive, end is LT-exclusive. Multiple filters in one
+// group are AND'd by HubSpot, so passing both bounds a quarter. Splitting into quarterly
+// windows keeps each query under HubSpot's hard 10,000-record search ceiling.
+export async function fetchAllEmailsFull({ start, end } = {}) {
   const propDefs = await fetchAllEmailProperties()
 
-  let filterGroups
-  if (mode && cutoff) {
-    const cutoffMs = new Date(cutoff + 'T00:00:00Z').getTime()
-    const operator = mode === 'before' ? 'LT' : 'GTE'
-    filterGroups = [{ filters: [{ propertyName: 'hs_timestamp', operator, value: String(cutoffMs) }] }]
+  const filters = []
+  if (start) {
+    filters.push({ propertyName: 'hs_timestamp', operator: 'GTE', value: String(new Date(start + 'T00:00:00Z').getTime()) })
   }
+  if (end) {
+    filters.push({ propertyName: 'hs_timestamp', operator: 'LT', value: String(new Date(end + 'T00:00:00Z').getTime()) })
+  }
+  const filterGroups = filters.length ? [{ filters }] : undefined
 
   const { records, truncated } = await fetchAllObjectsFull('emails', propDefs, {
     pinnedFirst: 'hs_email_subject',

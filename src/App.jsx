@@ -26,11 +26,11 @@ const TABS = [
   { id: 'meetingExports', label: 'Meetings' },
   { id: 'callExports', label: 'Calls' },
   { id: 'emailExportsPre', label: 'Emails (Prior to 12/31/25)' },
-  { id: 'emailExportsPost', label: 'Emails (Post 12/31/25)' },
+  { id: 'emailQ1', label: 'Emails (Q1 2026)' },
+  { id: 'emailQ2', label: 'Emails (Q2 2026)' },
+  { id: 'emailQ3', label: 'Emails (Q3 2026)' },
   { id: 'communicationExports', label: 'Communications' },
 ]
-
-const EMAIL_CUTOFF = '2025-12-31'
 
 // Tabs that fetch their own data instead of relying on the global /api/refresh payload.
 // Each entry is a thunk so tabs needing props (like the two date-split Emails tabs) can pass them.
@@ -40,11 +40,14 @@ const SELF_FETCH_TABS = {
   notes: () => <NoteExports />,
   meetingExports: () => <MeetingExports />,
   callExports: () => <CallExports />,
-  // Distinct keys are required: both tabs render the same EmailExports type at the same
-  // tree position, so without unique keys React reuses one instance across the tab switch
-  // and the second tab shows the first tab's loaded data instead of re-fetching.
-  emailExportsPre: () => <EmailExports key="emailExportsPre" title="Emails (Prior to 12/31/25)" cutoff={EMAIL_CUTOFF} mode="before" />,
-  emailExportsPost: () => <EmailExports key="emailExportsPost" title="Emails (Post 12/31/25)" cutoff={EMAIL_CUTOFF} mode="onOrAfter" />,
+  // Distinct keys are required: all four Emails tabs render the same EmailExports type at
+  // the same tree position, so without unique keys React reuses one instance across the
+  // tab switch and a tab shows the previous tab's loaded data instead of re-fetching.
+  // Windows are half-open [start, end) on hs_timestamp and tile with no gaps/overlaps.
+  emailExportsPre: () => <EmailExports key="emailExportsPre" title="Emails (Prior to 12/31/25)" end="2026-01-01" rangeLabel="before 2026" fileSuffix="pre-2026" />,
+  emailQ1: () => <EmailExports key="emailQ1" title="Emails (Q1 2026)" start="2026-01-01" end="2026-04-01" rangeLabel="in Q1 2026 (Jan–Mar)" fileSuffix="q1-2026" />,
+  emailQ2: () => <EmailExports key="emailQ2" title="Emails (Q2 2026)" start="2026-04-01" end="2026-07-01" rangeLabel="in Q2 2026 (Apr–Jun)" fileSuffix="q2-2026" />,
+  emailQ3: () => <EmailExports key="emailQ3" title="Emails (Q3 2026)" start="2026-07-01" end="2026-10-01" rangeLabel="in Q3 2026 (Jul–Sep)" fileSuffix="q3-2026" />,
   communicationExports: () => <CommunicationExports />,
 }
 

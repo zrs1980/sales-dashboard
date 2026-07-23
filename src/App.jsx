@@ -40,8 +40,11 @@ const SELF_FETCH_TABS = {
   notes: () => <NoteExports />,
   meetingExports: () => <MeetingExports />,
   callExports: () => <CallExports />,
-  emailExportsPre: () => <EmailExports title="Emails (Prior to 12/31/25)" cutoff={EMAIL_CUTOFF} mode="before" />,
-  emailExportsPost: () => <EmailExports title="Emails (Post 12/31/25)" cutoff={EMAIL_CUTOFF} mode="onOrAfter" />,
+  // Distinct keys are required: both tabs render the same EmailExports type at the same
+  // tree position, so without unique keys React reuses one instance across the tab switch
+  // and the second tab shows the first tab's loaded data instead of re-fetching.
+  emailExportsPre: () => <EmailExports key="emailExportsPre" title="Emails (Prior to 12/31/25)" cutoff={EMAIL_CUTOFF} mode="before" />,
+  emailExportsPost: () => <EmailExports key="emailExportsPost" title="Emails (Post 12/31/25)" cutoff={EMAIL_CUTOFF} mode="onOrAfter" />,
   communicationExports: () => <CommunicationExports />,
 }
 
